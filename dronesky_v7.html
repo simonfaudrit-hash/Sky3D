@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DroneSky 3D — Espaces Aériens | Sud-Ouest France</title>
+
+<!-- MapLibre GL JS — open source, sans token Ion -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link  href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet"/>
+<link  href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;--panel:#0d1220;--p2:#131926;--p3:#181f30;
+  --bdr:#1c2840;--bdr2:#243050;
+  --ac:#00d4ff;--ac2:#0057b8;--grn:#00ffaa;--yel:#FFE44D;
+  --txt:#c5d8f5;--dim:#607090;--mut:#354560;
+  --red:#ff3535;--ora:#ff8800;
+  --mono:'JetBrains Mono',monospace;--ui:'Space Grotesk',sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);font-family:var(--ui);color:var(--txt)}
+#app{display:grid;grid-template-columns:290px 1fr;grid-template-rows:50px 1fr;height:100vh}
+
+/* Header */
+#hdr{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding:0 14px;
+  background:var(--panel);border-bottom:1px solid var(--bdr);z-index:200}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;white-space:nowrap}
+.logo-i{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;background:linear-gradient(135deg,var(--ac),var(--ac2))}
+.logo-s{font-size:9px;font-weight:400;color:var(--dim);font-family:var(--mono);letter-spacing:.4px;line-height:1}
+.sep{flex:1}
+.pill{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;font-family:var(--mono);white-space:nowrap}
+.p-blue{background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:var(--ac)}
+.p-warn{background:rgba(255,136,0,.12);border:1px solid rgba(255,136,0,.3);color:#ffaa44}
+.p-ok{background:rgba(0,255,170,.1);border:1px solid rgba(0,255,170,.3);color:var(--grn)}
+.p-yel{background:rgba(255,228,77,.1);border:1px solid rgba(255,228,77,.3);color:var(--yel)}
+
+/* Sidebar */
+#side{background:var(--panel);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden;z-index:100}
+.ss{flex:1;overflow-y:auto;padding:10px 12px;scrollbar-width:thin;scrollbar-color:var(--bdr2) transparent}
+.stitle{font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;
+  color:var(--mut);margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--bdr)}
+.stitle:first-child{margin-top:2px}
+.stitle .act{float:right;cursor:pointer;color:var(--grn);font-size:10px;letter-spacing:0;font-weight:500;text-transform:none}
+
+/* Progress bar */
+#progress-wrap{background:var(--p2);border:1px solid var(--bdr);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+#progress-msg{font-size:10px;color:var(--dim);margin-bottom:6px;font-family:var(--mono)}
+#progress-bar-outer{background:var(--bdr2);border-radius:3px;height:4px;overflow:hidden}
+#progress-bar{background:var(--ac);height:100%;width:0%;transition:width .3s;border-radius:3px}
+
+/* Stats */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px}
+.st{background:var(--p2);border:1px solid var(--bdr);border-radius:8px;padding:8px 10px}
+.sn{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--ac);line-height:1}
+.sl{font-size:9px;color:var(--mut);margin-top:2px}
+
+/* Alt slider — MAX 120m */
+.ab{background:var(--p2);border:1px solid var(--bdr);border-radius:8px;padding:11px;margin-bottom:8px}
+.ah{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.ah-label{font-size:10px;color:var(--dim)}
+.av{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--ac)}
+.au{font-size:9px;color:var(--mut);font-family:var(--mono)}
+input[type=range]{width:100%;-webkit-appearance:none;height:4px;border-radius:2px;outline:none;cursor:pointer;
+  background:linear-gradient(to right,var(--ac) var(--pct,100%),var(--bdr2) var(--pct,100%))}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--ac);border:2px solid var(--bg);box-shadow:0 0 10px rgba(0,212,255,.6);cursor:pointer}
+.am{display:flex;justify-content:space-between;margin-top:5px}
+.amk{font-size:9px;color:var(--mut);font-family:var(--mono)}
+.amk.w{color:#ffaa44;font-weight:700}
+
+/* Zone filters */
+.zf{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;cursor:pointer;
+  transition:background .15s;margin-bottom:2px;user-select:none}
+.zf:hover{background:var(--p3)}
+.zdot{width:11px;height:11px;border-radius:3px;flex-shrink:0;transition:opacity .2s}
+.zf:not(.on) .zdot{opacity:.15}
+.zfi{flex:1}.zfn{font-size:10px;font-weight:600}.zfc{font-size:9px;color:var(--mut);font-family:var(--mono)}
+.zsw{width:26px;height:15px;border-radius:8px;background:var(--bdr2);position:relative;transition:background .2s;flex-shrink:0}
+.zsw::after{content:'';position:absolute;width:11px;height:11px;border-radius:50%;background:#fff;top:2px;left:2px;transition:transform .2s}
+.zf.on .zsw{background:var(--ac)}.zf.on .zsw::after{transform:translateX(11px)}
+
+/* NOTAM */
+.nlist{max-height:150px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--bdr) transparent}
+.ni{background:var(--p2);border:1px solid var(--bdr);border-radius:6px;padding:6px 9px;margin-bottom:3px;cursor:pointer;transition:border-color .15s}
+.ni:hover{border-color:var(--yel)}
+.nid{font-family:var(--mono);font-size:9px;color:var(--yel);font-weight:700}
+.ntxt{font-size:9px;color:var(--dim);margin-top:2px;line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.nmt{font-size:10px;color:var(--mut);text-align:center;padding:10px}
+
+/* Buttons */
+.btn{width:100%;padding:7px 11px;border-radius:6px;border:1px solid var(--bdr2);background:var(--p2);
+  color:var(--txt);font-family:var(--ui);font-size:10px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:6px;margin-bottom:4px;transition:all .15s}
+.btn:hover{border-color:var(--ac);background:rgba(0,212,255,.07);color:var(--ac)}
+.btn.on{border-color:var(--ac);background:rgba(0,212,255,.13);color:var(--ac)}
+.bi{font-size:12px;width:15px;text-align:center}
+.btn-g{border-color:rgba(0,255,170,.3);color:var(--grn)}
+.btn-g:hover{border-color:var(--grn);background:rgba(0,255,170,.07);color:var(--grn)}
+
+/* Footer */
+#sfoot{padding:8px 12px;border-top:1px solid var(--bdr)}
+.disc{font-size:9px;color:var(--mut);line-height:1.5}
+.disc strong{color:#ffaa44}
+
+/* Map */
+#map{position:relative;overflow:hidden}
+#mapgl{width:100%;height:100%}
+
+/* Navigation hint */
+#nav-hint{position:absolute;bottom:48px;right:12px;background:rgba(13,18,32,.85);
+  border:1px solid var(--bdr2);border-radius:8px;padding:7px 10px;z-index:10;
+  font-family:var(--mono);font-size:9px;color:var(--dim);line-height:1.8;pointer-events:none}
+.nh{display:flex;align-items:center;gap:6px}
+.nh-key{background:var(--bdr2);border-radius:3px;padding:1px 5px;color:var(--txt);font-size:9px}
+
+/* Popup */
+#popup{position:absolute;top:12px;right:12px;width:270px;background:var(--panel);
+  border:1px solid var(--bdr2);border-radius:10px;padding:13px;z-index:50;display:none;
+  box-shadow:0 12px 40px rgba(0,0,0,.75);animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.px{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--dim);
+  cursor:pointer;font-size:14px;padding:4px}.px:hover{color:var(--txt)}
+.pbadge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:9px;
+  font-weight:700;font-family:var(--mono);letter-spacing:.6px;margin-bottom:7px}
+.pname{font-size:13px;font-weight:700;line-height:1.3;margin-bottom:10px}
+.prow{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bdr);font-size:10px}
+.prow:last-of-type{border:none}.prl{color:var(--dim)}.prv{font-family:var(--mono);font-weight:600}
+.palert{margin-top:9px;padding:7px 9px;border-radius:6px;font-size:10px;font-weight:700;
+  display:flex;align-items:center;gap:5px;line-height:1.3}
+.alP{background:rgba(204,0,0,.15);border:1px solid rgba(204,0,0,.4);color:#ff7070}
+.alR{background:rgba(255,136,0,.15);border:1px solid rgba(255,136,0,.4);color:#ffaa44}
+.alC{background:rgba(26,107,255,.15);border:1px solid rgba(26,107,255,.4);color:#6699ff}
+.alN{background:rgba(255,228,77,.12);border:1px solid rgba(255,228,77,.35);color:var(--yel)}
+.alOK{background:rgba(0,255,170,.1);border:1px solid rgba(0,255,170,.3);color:var(--grn)}
+
+/* Alt bar */
+#aitbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
+  background:rgba(13,18,32,.9);backdrop-filter:blur(8px);border:1px solid var(--bdr2);
+  border-radius:20px;padding:6px 14px;font-family:var(--mono);font-size:11px;color:var(--ac);
+  z-index:10;pointer-events:none;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.aitd{width:6px;height:6px;border-radius:50%;background:var(--ac);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* Toast */
+#toast{position:absolute;top:10px;left:50%;transform:translateX(-50%);padding:6px 14px;
+  border-radius:20px;font-family:var(--mono);font-size:10px;z-index:20;display:none;white-space:nowrap}
+.t-ok{background:rgba(0,255,170,.15);border:1px solid rgba(0,255,170,.3);color:var(--grn)}
+.t-err{background:rgba(255,48,48,.15);border:1px solid rgba(255,48,48,.3);color:#ff8888}
+.t-info{background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);color:var(--ac)}
+
+/* MapLibre overrides */
+.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.5}
+.maplibregl-ctrl-bottom-right{bottom:40px!important}
+</style>
+</head>
+<body>
+<div id="app">
+
+<header id="hdr">
+  <div class="logo">
+    <div class="logo-i">🚁</div>
+    <div>DroneSky<span style="font-weight:300"> 3D</span>
+      <div class="logo-s">ESPACES AÉRIENS + NOTAM · SUD-OUEST FRANCE</div>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <span class="pill p-blue" id="pill-airac">AIRAC 06/26</span>
+  <span class="pill p-yel"  id="pill-n">⚡ 0 NOTAM</span>
+  <span class="pill p-warn">⚠ Prototype</span>
+  <span class="pill p-ok"   id="pill-z">0 zones</span>
+</header>
+
+<aside id="side">
+<div class="ss">
+
+  <!-- Chargement données SIA -->
+  <div class="stitle">Données SIA</div>
+  <div id="progress-wrap">
+    <div id="progress-msg" style="font-family:var(--mono);font-size:10px;color:var(--dim)">
+      Chargement AIXM depuis data.gouv.fr…
+    </div>
+    <div id="progress-bar-outer"><div id="progress-bar"></div></div>
+  </div>
+  <button class="btn btn-g" onclick="loadAIXM()"><span class="bi">↻</span>Recharger les données SIA</button>
+  <button class="btn" onclick="loadDemo()"><span class="bi">🎭</span>Données démo (hors-ligne)</button>
+
+  <!-- Stats -->
+  <div class="stitle">Statistiques</div>
+  <div class="sg">
+    <div class="st"><div class="sn" id="sn-t">0</div><div class="sl">Zones totales</div></div>
+    <div class="st"><div class="sn" id="sn-n" style="color:var(--yel)">0</div><div class="sl">NOTAM actifs</div></div>
+    <div class="st"><div class="sn" id="sn-p" style="color:var(--red)">0</div><div class="sl">Zones P</div></div>
+    <div class="st"><div class="sn" id="sn-r" style="color:var(--ora)">0</div><div class="sl">Zones R/D</div></div>
+  </div>
+
+  <!-- Altitude — bloquée à 120m réglementaire -->
+  <div class="stitle">Altitude de vol</div>
+  <div class="ab">
+    <div class="ah">
+      <span class="ah-label">Hauteur télépilote</span>
+      <div><span class="av" id="av-m">120</span><span class="au"> m AGL</span></div>
+    </div>
+    <input type="range" id="alt-sl" min="0" max="120" value="120" step="1"/>
+    <div class="am">
+      <span class="amk">0 m (sol)</span>
+      <span class="amk w">MAX légal : 120 m / 400 ft</span>
+    </div>
+  </div>
+
+  <!-- Filtres zones -->
+  <div class="stitle">Types de zones</div>
+  <div id="zf-list"></div>
+
+  <!-- NOTAM -->
+  <div class="stitle">NOTAM actifs <span class="act" onclick="refreshNotams()">↻ Actualiser</span></div>
+  <div class="nlist" id="nlist"><div class="nmt">Chargement…</div></div>
+
+  <!-- Fond de carte -->
+  <div class="stitle">Fond de carte</div>
+  <button class="btn on" id="btn-osm" onclick="setBasemap('osm')"><span class="bi">🗺</span>OpenStreetMap</button>
+  <button class="btn" id="btn-sat"   onclick="setBasemap('sat')"><span class="bi">🛰</span>Satellite ESRI</button>
+  <button class="btn" id="btn-dark"  onclick="setBasemap('dark')"><span class="bi">🌙</span>Sombre (vol de nuit)</button>
+
+  <!-- Affichage -->
+  <div class="stitle">Affichage</div>
+  <button class="btn on" id="btn-3d" onclick="toggle3D()"><span class="bi">🏔</span>Volumes 3D</button>
+  <button class="btn"    id="btn-lbl" onclick="toggleLabels()"><span class="bi">🏷</span>Étiquettes zones</button>
+  <button class="btn"    onclick="flyHome()"><span class="bi">🎯</span>Recentrer Sud-Ouest</button>
+
+</div>
+<div id="sfoot">
+  <div class="disc">
+    <strong>⚠ ATTENTION :</strong> Prototype éducatif. Données officielles :
+    <strong>SIA DGAC · Alpha Tango · Sofia-Briefing NOTAM</strong>
+  </div>
+</div>
+</aside>
+
+<div id="map">
+  <div id="mapgl"></div>
+
+  <div id="nav-hint">
+    <div class="nh"><span class="nh-key">Drag</span> Déplacer</div>
+    <div class="nh"><span class="nh-key">Clic droit + drag</span> Orienter / Incliner</div>
+    <div class="nh"><span class="nh-key">Ctrl + drag</span> Incliner</div>
+    <div class="nh"><span class="nh-key">Scroll</span> Zoom (centré pointeur)</div>
+  </div>
+
+  <div id="popup">
+    <button class="px" onclick="closePopup()">✕</button>
+    <div id="pb" class="pbadge"></div>
+    <div id="pn" class="pname"></div>
+    <div id="pr"></div>
+    <div id="pa" class="palert" style="display:none"></div>
+  </div>
+
+  <div id="aitbar">
+    <div class="aitd"></div>
+    Altitude max réglementaire :
+    <strong id="ai-m" style="color:var(--ac)">120</strong> m = 400 ft AGL
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+// ══════════════════════════════════════════════════════
+// TYPES D'ESPACES AÉRIENS
+// ══════════════════════════════════════════════════════
+const TYPES = {
+  P:    {label:'Zone Interdite (P)',   color:'#CC0000', wall:'#990000'},
+  R:    {label:'Zone Réglementée (R)', color:'#FF5500', wall:'#cc3300'},
+  D:    {label:'Zone Dangereuse (D)',  color:'#FF9900', wall:'#cc7700'},
+  CTR:  {label:'CTR',                  color:'#1a6bff', wall:'#0044cc'},
+  TMA:  {label:'TMA',                  color:'#0090bb', wall:'#006688'},
+  SIV:  {label:'SIV',                  color:'#00aa66', wall:'#007744'},
+  RTBA: {label:'RTBA',                 color:'#8800cc', wall:'#5500aa'},
+  ATZ:  {label:'ATZ',                  color:'#3a6090', wall:'#1a3060'},
+  RMZ:  {label:'RMZ',                  color:'#44aadd', wall:'#2277aa'},
+  ZSM:  {label:'Zone Sensible',        color:'#ff3399', wall:'#cc0066'},
+  NOTAM:{label:'NOTAM actif',          color:'#FFE44D', wall:'#ccaa00'},
+};
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+const S = {
+  on: new Set(Object.keys(TYPES)),
+  altM: 120,
+  show3D: true,
+  showLabels: false,
+  zones: [],
+  notams: [],
+  notamGeo: [],
+  basemap: 'osm',
+};
+
+// ══════════════════════════════════════════════════════
+// MAPLIBRE GL INIT
+// ══════════════════════════════════════════════════════
+const BASEMAPS = {
+  osm: {
+    version:8,
+    sources:{
+      osm:{type:'raster',
+        tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
+               'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
+               'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'],
+        tileSize:256,maxzoom:19,attribution:'© OpenStreetMap contributors'}
+    },
+    layers:[{id:'osm',type:'raster',source:'osm',paint:{'raster-opacity':0.9}}],
+    glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  },
+  sat: {
+    version:8,
+    sources:{
+      sat:{type:'raster',
+        tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize:256,maxzoom:19,attribution:'© ESRI World Imagery'}
+    },
+    layers:[{id:'sat',type:'raster',source:'sat'}],
+    glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  },
+  dark: {
+    version:8,
+    sources:{
+      dark:{type:'raster',
+        tiles:['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+               'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'],
+        tileSize:256,maxzoom:19,attribution:'© OpenStreetMap © CartoDB'}
+    },
+    layers:[{id:'dark',type:'raster',source:'dark'}],
+    glyphs:'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
+  },
+};
+
+const map = new maplibregl.Map({
+  container: 'mapgl',
+  style: BASEMAPS.osm,
+  center: [0.5, 44.1],
+  zoom: 7,
+  pitch: 0,
+  bearing: 0,
+  maxZoom: 16,
+  minZoom: 4,
+  // Navigation : zoom centré sur le pointeur (comportement par défaut MapLibre)
+  scrollZoom: {around: 'cursor'},  // ← zoom centré sur le pointeur
+});
+
+// Navigation controls
+map.addControl(new maplibregl.NavigationControl({visualizePitch:true}), 'top-right');
+map.addControl(new maplibregl.ScaleControl({unit:'metric'}), 'bottom-left');
+
+// ══════════════════════════════════════════════════════
+// INIT SOURCES ET LAYERS
+// ══════════════════════════════════════════════════════
+map.on('load', () => {
+  // Source espaces aériens SIA
+  map.addSource('airspaces', {
+    type: 'geojson',
+    data: {type:'FeatureCollection', features:[]},
+    generateId: true,
+  });
+
+  // Source NOTAM
+  map.addSource('notams', {
+    type: 'geojson',
+    data: {type:'FeatureCollection', features:[]},
+    generateId: true,
+  });
+
+  // ── Fill 2D (fond) ──────────────────────────────
+  map.addLayer({
+    id: 'airspaces-fill',
+    type: 'fill',
+    source: 'airspaces',
+    layout: {visibility:'none'}, // masqué en mode 3D
+    paint: {
+      'fill-color': ['get','color'],
+      'fill-opacity': ['*', ['get','opacity'], 0.6],
+    }
+  });
+
+  // ── Extrusion 3D ───────────────────────────────
+  map.addLayer({
+    id: 'airspaces-3d',
+    type: 'fill-extrusion',
+    source: 'airspaces',
+    paint: {
+      'fill-extrusion-color':   ['get','color'],
+      'fill-extrusion-opacity': ['get','opacity'],
+      'fill-extrusion-height':  ['get','upper_m'],
+      'fill-extrusion-base':    ['get','lower_m'],
+      'fill-extrusion-vertical-gradient': true,
+    }
+  });
+
+  // ── Contours ────────────────────────────────────
+  map.addLayer({
+    id: 'airspaces-outline',
+    type: 'line',
+    source: 'airspaces',
+    paint: {
+      'line-color': ['get','color'],
+      'line-width': [
+        'case',
+        ['==', ['get','type'], 'P'], 2.5,
+        ['==', ['get','type'], 'R'], 2,
+        1.5
+      ],
+      'line-opacity': 0.9,
+    }
+  });
+
+  // ── NOTAM 3D ────────────────────────────────────
+  map.addLayer({
+    id: 'notams-3d',
+    type: 'fill-extrusion',
+    source: 'notams',
+    paint: {
+      'fill-extrusion-color':   '#FFE44D',
+      'fill-extrusion-opacity': 0.55,
+      'fill-extrusion-height':  ['get','upper_m'],
+      'fill-extrusion-base':    ['get','lower_m'],
+    }
+  });
+
+  map.addLayer({
+    id: 'notams-outline',
+    type: 'line',
+    source: 'notams',
+    paint: {
+      'line-color': '#FFE44D',
+      'line-width': 2,
+      'line-opacity': 0.85,
+      'line-dasharray': [4,3],
+    }
+  });
+
+  // ── Labels zones ────────────────────────────────
+  map.addLayer({
+    id: 'airspaces-labels',
+    type: 'symbol',
+    source: 'airspaces',
+    layout: {
+      'text-field': ['get','type'],
+      'text-size': 10,
+      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+      'text-anchor': 'center',
+      'text-allow-overlap': false,
+      visibility: 'none',
+    },
+    paint: {
+      'text-color': ['get','color'],
+      'text-halo-color': 'rgba(0,0,0,0.8)',
+      'text-halo-width': 1.5,
+    }
+  });
+
+  // Clic
+  map.on('click', 'airspaces-3d',   e => e.features.length && showPopup(e.features[0].properties, e.lngLat));
+  map.on('click', 'airspaces-fill', e => e.features.length && showPopup(e.features[0].properties, e.lngLat));
+  map.on('click', 'notams-3d',      e => e.features.length && showNotamPopup(e.features[0].properties));
+  map.on('click', e => {
+    const f = map.queryRenderedFeatures(e.point, {layers:['airspaces-3d','airspaces-fill','notams-3d']});
+    if (!f.length) closePopup();
+  });
+
+  // Curseur
+  ['airspaces-3d','airspaces-fill','notams-3d'].forEach(l => {
+    map.on('mouseenter', l, () => map.getCanvas().style.cursor = 'pointer');
+    map.on('mouseleave', l, () => map.getCanvas().style.cursor = '');
+  });
+
+  buildFilters();
+
+  // Charger les vraies données AIXM
+  loadAIXM();
+});
+
+// ══════════════════════════════════════════════════════
+// CHARGEMENT DONNÉES AIXM RÉELLES (data.gouv.fr)
+// ══════════════════════════════════════════════════════
+async function loadAIXM() {
+  setProgress(5, 'Téléchargement AIXM depuis data.gouv.fr…');
+  toast('Téléchargement données SIA…', 'info');
+
+  // L'URL data.gouv.fr redirige vers le vrai fichier XML
+  const AIXM_URL = 'https://www.data.gouv.fr/api/1/datasets/r/286d2c5d-d833-4d3c-a221-04ee919eb83f';
+
+  let xmlText;
+  try {
+    const r = await fetch(AIXM_URL, {
+      headers: {'User-Agent':'DroneSky/1.0 (telepilote drone; contact: contact@dronesky.fr)'}
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    setProgress(35, 'Fichier reçu, parsing AIXM…');
+    xmlText = await r.text();
+    setProgress(55, 'Extraction des zones…');
+  } catch(e) {
+    setProgress(0, `Erreur réseau: ${e.message} — données démo chargées`);
+    toast('Données SIA indisponibles → démo chargée', 'err');
+    loadDemo();
+    return;
+  }
+
+  try {
+    const features = parseAIXM(xmlText);
+    setProgress(85, `${features.length} zones extraites, affichage…`);
+    ingestFeatures(features);
+    setProgress(100, `✓ ${features.length} zones SIA chargées (données officielles)`);
+    toast(`✓ ${features.length} zones SIA officielles chargées`, 'ok');
+    loadDemoNotams();
+  } catch(e) {
+    setProgress(0, `Erreur parsing: ${e.message}`);
+    toast('Erreur parsing AIXM → démo', 'err');
+    loadDemo();
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PARSER AIXM 4.5 EN JAVASCRIPT PUR
+// ══════════════════════════════════════════════════════
+function parseAIXM(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'application/xml');
+
+  // Namespace AIXM 4.5
+  const NS_A = 'http://www.aixm.aero/schema/4.5';
+  const NS_G = 'http://www.opengis.net/gml';
+
+  const RELEVANT = new Set(['P','R','D','CTR','TMA','SIV','RTBA','ATZ','RMZ','TMZ','ZSM']);
+
+  // Bbox Sud-Ouest France
+  const BBOX = {lonMin:-2.5, latMin:42.0, lonMax:3.5, latMax:46.5};
+
+  function getVal(el, ...tags) {
+    for (const tag of tags) {
+      const f = el.querySelector(tag) || el.getElementsByTagNameNS(NS_A, tag)[0];
+      if (f && f.textContent.trim()) return f.textContent.trim();
+    }
+    return '';
+  }
+
+  function parseAlt(val) {
+    if (!val) return 0;
+    const v = val.trim().toUpperCase();
+    if (['SFC','GND','0'].includes(v)) return 0;
+    if (v.includes('UNL')) return 99999;
+    const n = parseFloat(v.replace(/[^\d.]/g,'')) || 0;
+    if (v.includes('FL')) return n * 100;
+    if (v.includes(' M') || val.endsWith('M')) return n * 3.28084;
+    return n;
+  }
+
+  // Parser une posList GML "lat lon lat lon..."
+  function parsePosList(text) {
+    const nums = text.trim().split(/\s+/).map(Number);
+    const pts = [];
+    for (let i = 0; i < nums.length - 1; i += 2) {
+      const lat = nums[i], lon = nums[i+1];
+      if (!isNaN(lat) && !isNaN(lon)) pts.push([lon, lat]);
+    }
+    return pts;
+  }
+
+  // Générer un arc de cercle
+  function makeArc(cx, cy, r_nm, startAngle, endAngle, clockwise, nPts=32) {
+    const pts = [];
+    const r_deg = r_nm / 60.0;
+    let start = startAngle, end = endAngle;
+    if (clockwise) {
+      if (end <= start) end += 360;
+    } else {
+      if (start <= end) start += 360;
+      [start, end] = [end, start];
+      clockwise = true;
+    }
+    for (let i = 0; i <= nPts; i++) {
+      const a = (start + (end - start) * i / nPts) * Math.PI / 180;
+      const lon = cx + r_deg / Math.cos(cy * Math.PI / 180) * Math.sin(a);
+      const lat = cy + r_deg * Math.cos(a);
+      pts.push([lon, lat]);
+    }
+    return pts;
+  }
+
+  // Parser les segments de géométrie AIXM (arc + ligne)
+  function parseGeomSegments(airspaceEl) {
+    let coords = [];
+
+    // 1. Essayer gml:posList directement
+    const posLists = airspaceEl.getElementsByTagNameNS(NS_G, 'posList');
+    if (posLists.length > 0) {
+      for (const pl of posLists) {
+        if (pl.textContent.trim()) {
+          const pts = parsePosList(pl.textContent);
+          if (pts.length >= 3) return pts;
+        }
+      }
+    }
+
+    // 2. Essayer gml:pos (points individuels)
+    const poses = airspaceEl.getElementsByTagNameNS(NS_G, 'pos');
+    if (poses.length >= 3) {
+      for (const pos of poses) {
+        const nums = pos.textContent.trim().split(/\s+/).map(Number);
+        if (nums.length >= 2) coords.push([nums[1], nums[0]]);
+      }
+      if (coords.length >= 3) return coords;
+    }
+
+    // 3. Essayer les Segments AIXM avec arcs
+    const segments = airspaceEl.querySelectorAll('Segment,BoundarySegment,Boundary');
+    for (const seg of segments) {
+      const startEl = seg.querySelector('startPoint,[*|Point],[*|position]');
+      if (startEl) {
+        const posEl = startEl.getElementsByTagNameNS(NS_G,'pos')[0];
+        if (posEl) {
+          const nums = posEl.textContent.trim().split(/\s+/).map(Number);
+          if (nums.length >= 2) coords.push([nums[1],nums[0]]);
+        }
+      }
+
+      // Arc de cercle
+      const arcEl = seg.querySelector('Arc,ArcByCenterPoint');
+      if (arcEl) {
+        const centreEl = arcEl.querySelector('[*|centerOf],[*|pos]');
+        const centrePos = arcEl.getElementsByTagNameNS(NS_G,'pos')[0];
+        if (centrePos) {
+          const [clat, clon] = centrePos.textContent.trim().split(/\s+/).map(Number);
+          const r = parseFloat(arcEl.querySelector('radius,Radius')?.textContent||'5');
+          const startBrg = parseFloat(arcEl.querySelector('startAngle,StartAngle')?.textContent||'0');
+          const endBrg   = parseFloat(arcEl.querySelector('endAngle,EndAngle')?.textContent||'360');
+          const cw = (arcEl.querySelector('arcDirection,Direction')?.textContent||'').includes('clockwise');
+          const arcPts = makeArc(clon, clat, r, startBrg, endBrg, cw);
+          coords.push(...arcPts);
+        }
+      }
+    }
+    return coords;
+  }
+
+  const features = [];
+  const airspaces = Array.from(doc.getElementsByTagNameNS(NS_A, 'Airspace'))
+                  .concat(Array.from(doc.getElementsByTagName('Airspace')));
+
+  for (const el of airspaces) {
+    const typeRaw = (getVal(el,'type','AirspaceType') || '').toUpperCase().trim();
+
+    // Normaliser le type
+    let aspType = null;
+    for (const t of RELEVANT) {
+      if (typeRaw === t || typeRaw.startsWith(t+'-') || typeRaw.startsWith(t+' ')) {
+        aspType = t; break;
+      }
+    }
+    if (!aspType) continue;
+
+    const name  = getVal(el,'name','designator') || typeRaw;
+    const cls   = getVal(el,'classification','class') || '';
+    const lowerRaw  = getVal(el,'lowerLimit');
+    const lowerUnit = getVal(el,'lowerLimitUnit');
+    const upperRaw  = getVal(el,'upperLimit');
+    const upperUnit = getVal(el,'upperLimitUnit');
+
+    const lower_ft = parseAlt(lowerRaw || '0');
+    const upper_ft = parseAlt(upperRaw || '400');
+
+    // Ignorer si entièrement au-dessus de 400ft
+    if (lower_ft > 400) continue;
+
+    const coords = parseGeomSegments(el);
+    if (coords.length < 3) continue;
+
+    // Fermer le polygone
+    if (coords[0][0] !== coords[coords.length-1][0] || coords[0][1] !== coords[coords.length-1][1]) {
+      coords.push(coords[0]);
+    }
+
+    // Filtrer bbox Sud-Ouest
+    const lons = coords.map(c=>c[0]), lats = coords.map(c=>c[1]);
+    const inBbox = Math.max(...lons) >= BBOX.lonMin && Math.min(...lons) <= BBOX.lonMax &&
+                   Math.max(...lats) >= BBOX.latMin && Math.min(...lats) <= BBOX.latMax;
+    if (!inBbox) continue;
+
+    const T = TYPES[aspType] || TYPES.R;
+    const lower_m = lower_ft * 0.3048;
+    const upper_m = Math.max(Math.min(upper_ft, 400) * 0.3048, 5);
+
+    // Opacité selon le type
+    const opacityMap = {P:.62,R:.52,D:.46,CTR:.38,TMA:.28,SIV:.22,RTBA:.50,ATZ:.36,RMZ:.34,ZSM:.40};
+
+    features.push({
+      type: 'Feature',
+      geometry: {type:'Polygon', coordinates:[coords]},
+      properties: {
+        name, type:aspType, class:cls,
+        lower_ft, upper_ft,
+        lower_m: Math.round(lower_m*10)/10,
+        upper_m: Math.round(upper_m*10)/10,
+        height_m: Math.round((upper_m-lower_m)*10)/10,
+        lower_str: lower_ft===0 ? 'SFC' : `${Math.round(lower_ft)} ft`,
+        upper_str: upper_ft>=9999 ? 'UNLIM' : `${Math.round(upper_ft)} ft`,
+        color: T.color,
+        opacity: opacityMap[aspType] || 0.4,
+      }
+    });
+  }
+  return features;
+}
+
+// ══════════════════════════════════════════════════════
+// INJECTION DANS MAPLIBRE
+// ══════════════════════════════════════════════════════
+function ingestFeatures(features) {
+  S.zones = features.map(f => f.properties);
+  map.getSource('airspaces').setData({type:'FeatureCollection', features});
+  applyAltFilter();
+  buildFilters();
+  updateStats();
+  document.getElementById('pill-z').textContent = features.length + ' zones';
+}
+
+function ingestNotamGeo(features) {
+  map.getSource('notams').setData({type:'FeatureCollection', features});
+}
+
+// ══════════════════════════════════════════════════════
+// FILTRE ALTITUDE
+// ══════════════════════════════════════════════════════
+function applyAltFilter() {
+  const ft = S.altM / 0.3048;
+  const activeTypes = Array.from(S.on).filter(t => t !== 'NOTAM');
+
+  const filter = ['all',
+    ['in', ['get','type'], ['literal', activeTypes]],
+    ['<=', ['get','lower_ft'], ft],
+  ];
+
+  const outlineFilter = ['in', ['get','type'], ['literal', activeTypes]];
+
+  ['airspaces-3d','airspaces-fill','airspaces-labels'].forEach(l => {
+    try { map.setFilter(l, filter); } catch(e){}
+  });
+  try { map.setFilter('airspaces-outline', outlineFilter); } catch(e){}
+
+  const notamVisible = S.on.has('NOTAM');
+  map.setLayoutProperty('notams-3d',      'visibility', notamVisible ? 'visible' : 'none');
+  map.setLayoutProperty('notams-outline', 'visibility', notamVisible ? 'visible' : 'none');
+}
+
+// ══════════════════════════════════════════════════════
+// FILTRES SIDEBAR
+// ══════════════════════════════════════════════════════
+function buildFilters() {
+  const c = document.getElementById('zf-list');
+  c.innerHTML = '';
+  Object.entries(TYPES).forEach(([t, info]) => {
+    const n = t==='NOTAM' ? S.notams.length : S.zones.filter(z=>z.type===t).length;
+    const d = document.createElement('div');
+    d.className = 'zf' + (S.on.has(t) ? ' on' : '');
+    d.innerHTML = `<div class="zdot" style="background:${info.color}"></div>
+      <div class="zfi"><div class="zfn">${info.label}</div><div class="zfc">${n} zone${n!==1?'s':''}</div></div>
+      <div class="zsw"></div>`;
+    d.onclick = () => {
+      if (S.on.has(t)) S.on.delete(t); else S.on.add(t);
+      d.classList.toggle('on');
+      applyAltFilter();
+      updateStats();
+    };
+    c.appendChild(d);
+  });
+}
+
+function updateStats() {
+  document.getElementById('sn-t').textContent = S.zones.length;
+  document.getElementById('sn-p').textContent = S.zones.filter(z=>z.type==='P').length;
+  document.getElementById('sn-r').textContent = S.zones.filter(z=>['R','D'].includes(z.type)).length;
+}
+
+// ══════════════════════════════════════════════════════
+// SLIDER ALTITUDE — MAX 120 m (réglementaire)
+// ══════════════════════════════════════════════════════
+const sl = document.getElementById('alt-sl');
+sl.addEventListener('input', () => {
+  const m = Math.min(+sl.value, 120);  // Double sécurité
+  S.altM = m;
+  document.getElementById('av-m').textContent = m;
+  document.getElementById('ai-m').textContent = m;
+  sl.value = m;
+  sl.style.setProperty('--pct', (m / 120 * 100) + '%');
+  if (map.getSource('airspaces')) applyAltFilter();
+});
+sl.style.setProperty('--pct', '100%');
+
+// ══════════════════════════════════════════════════════
+// POPUP
+// ══════════════════════════════════════════════════════
+function showPopup(p) {
+  const T = TYPES[p.type] || {color:'#888'};
+  const [r,g,b] = [parseInt(T.color.slice(1,3),16),parseInt(T.color.slice(3,5),16),parseInt(T.color.slice(5,7),16)];
+  document.getElementById('pb').textContent = p.type;
+  document.getElementById('pb').style.cssText = `background:rgba(${r},${g},${b},.18);border:1px solid rgba(${r},${g},${b},.45);color:${T.color}`;
+  document.getElementById('pn').textContent = p.name || '?';
+  const ft = S.altM / 0.3048;
+  const rows = [
+    ['Type',    T.label],
+    ['Classe',  p.class || '—'],
+    ['Plancher',`${p.lower_str || 'SFC'} (${(+(p.lower_m||0)).toFixed(0)} m)`],
+    ['Plafond', `${p.upper_str || '?'} (${Math.min(+(p.upper_m||0),120).toFixed(0)} m)`],
+    ['Hauteur 3D', `${(+(p.height_m||0)).toFixed(0)} m`],
+  ];
+  document.getElementById('pr').innerHTML = rows.map(([l,v]) =>
+    `<div class="prow"><span class="prl">${l}</span><span class="prv">${v}</span></div>`
+  ).join('');
+  const pa = document.getElementById('pa');
+  if (p.type==='P')                                                   {pa.className='palert alP';pa.innerHTML='🚫 Vol interdit — aucune dérogation possible';}
+  else if(['R','D','RTBA'].includes(p.type)&&(+p.lower_ft||0)<=ft)   {pa.className='palert alR';pa.innerHTML='⚠ Zone active à votre altitude — vérifier NOTAM';}
+  else if(['CTR','TMA','ATZ','RMZ'].includes(p.type))                 {pa.className='palert alC';pa.innerHTML='📡 Espace contrôlé — autorisation Alpha Tango requise';}
+  else                                                                 {pa.className='palert alOK';pa.innerHTML='✓ Plancher > 120 m — hors emprise drone';}
+  pa.style.display='flex';
+  document.getElementById('popup').style.display='block';
+}
+
+function showNotamPopup(p) {
+  document.getElementById('pb').textContent='NOTAM';
+  document.getElementById('pb').style.cssText='background:rgba(255,228,77,.2);border:1px solid rgba(255,228,77,.4);color:#FFE44D';
+  document.getElementById('pn').textContent = p.notam_id || 'NOTAM';
+  const rows=[['FIR',p.fir||'?'],['Plancher',p.lower_str||'SFC'],['Plafond',p.upper_str||'—']];
+  document.getElementById('pr').innerHTML = rows.map(([l,v])=>
+    `<div class="prow"><span class="prl">${l}</span><span class="prv">${v}</span></div>`).join('');
+  if (p.text) document.getElementById('pr').innerHTML +=
+    `<div style="margin-top:7px;padding:6px;background:var(--p2);border-radius:4px;font-size:9px;color:var(--dim);line-height:1.5;font-family:var(--mono);max-height:70px;overflow-y:auto">${p.text.substring(0,250)}</div>`;
+  const pa=document.getElementById('pa');
+  pa.className='palert alN';pa.innerHTML='⚡ NOTAM actif — vérifier validité et zones affectées';pa.style.display='flex';
+  document.getElementById('popup').style.display='block';
+}
+
+function closePopup(){document.getElementById('popup').style.display='none';}
+
+// ══════════════════════════════════════════════════════
+// NOTAM
+// ══════════════════════════════════════════════════════
+function renderNotamList() {
+  const el = document.getElementById('nlist');
+  if (!S.notams.length) {el.innerHTML='<div class="nmt">Aucun NOTAM</div>';return;}
+  el.innerHTML = S.notams.map((n,i) => `
+    <div class="ni" onclick="focusNotam(${i})">
+      <div class="nid">${n.id||'?'} — ${n.fir||'?'}</div>
+      <div class="ntxt">${(n.itemefull||'').substring(0,110)}</div>
+    </div>`).join('');
+  document.getElementById('pill-n').textContent = '⚡ '+S.notams.length+' NOTAM';
+  document.getElementById('sn-n').textContent = S.notams.length;
+}
+
+function focusNotam(i) {
+  showNotamPopup({...S.notams[i], notam_id:S.notams[i].id, text:S.notams[i].itemefull});
+}
+
+function refreshNotams() {
+  renderNotamList();
+  toast('↻ NOTAM rafraîchis', 'info');
+}
+
+function loadDemoNotams() {
+  const now = Date.now()/1000;
+  S.notams = [
+    {id:'A1234/26',fir:'LFBB',lower_str:'SFC',upper_str:'FL050',startvalidity:now-3600,endvalidity:now+86400,
+     itemefull:'LF-R 47A CAZAUX ACTIVE. EXERCICES MILITAIRES. SFC-FL050.'},
+    {id:'A1235/26',fir:'LFBO',lower_str:'SFC',upper_str:'1000FT',startvalidity:now,endvalidity:now+7200,
+     itemefull:'CTR TOULOUSE: RWY 14L/32R CLOSED MAINTENANCE 0800-1800 LT.'},
+    {id:'B0891/26',fir:'LFMM',lower_str:'SFC',upper_str:'1000FT',startvalidity:now-1800,endvalidity:now+3600,
+     itemefull:'ZONE TEMPORAIRE INTERDITE DRONES. MANIFESTATION SPORTIVE. RAYON 5KM.'},
+    {id:'A1240/26',fir:'LFBB',lower_str:'SFC',upper_str:'FL060',startvalidity:now,endvalidity:now+172800,
+     itemefull:'LF-D 30 LANDES: TIRS MISSILES. DANGER AREA ACTIVE. 0600-2200.'},
+  ];
+
+  const cir = (cx,cy,r_nm,n=24) => {
+    const pts=[];
+    for(let i=0;i<=n;i++){const a=i/n*Math.PI*2,rd=(r_nm/60)/Math.cos(cy*Math.PI/180);pts.push([cx+rd*Math.sin(a),cy+(r_nm/60)*Math.cos(a)]);}
+    return pts;
+  };
+  S.notamGeo = [
+    {type:'Feature',geometry:{type:'Polygon',coordinates:[cir(-1.15,44.53,10)]},
+     properties:{notam_id:'A1234/26',fir:'LFBB',lower_m:0,upper_m:120,lower_str:'SFC',upper_str:'FL050',text:'LF-R 47A CAZAUX ACTIVE'}},
+    {type:'Feature',geometry:{type:'Polygon',coordinates:[cir(1.364,43.629,14)]},
+     properties:{notam_id:'A1235/26',fir:'LFBO',lower_m:0,upper_m:100,lower_str:'SFC',upper_str:'1000FT',text:'CTR TOULOUSE RWY CLOSED'}},
+    {type:'Feature',geometry:{type:'Polygon',coordinates:[cir(-1.40,44.10,22)]},
+     properties:{notam_id:'A1240/26',fir:'LFBB',lower_m:0,upper_m:120,lower_str:'SFC',upper_str:'FL060',text:'LF-D 30 LANDES ACTIVE'}},
+  ];
+
+  ingestNotamGeo(S.notamGeo);
+  renderNotamList();
+}
+
+// ══════════════════════════════════════════════════════
+// DONNÉES DÉMO (si AIXM indisponible)
+// ══════════════════════════════════════════════════════
+function loadDemo() {
+  const circ=(cx,cy,r,n=28)=>{const pts=[];for(let i=0;i<=n;i++){const a=i/n*Math.PI*2;pts.push([cx+r/Math.cos(cy*Math.PI/180)*Math.sin(a),cy+r*Math.cos(a)]);}return pts;};
+  const rect=(x1,y1,x2,y2)=>[[x1,y1],[x2,y1],[x2,y2],[x1,y2],[x1,y1]];
+  const features=[];
+  const opMap={P:.62,R:.52,D:.46,CTR:.38,TMA:.26,SIV:.20,RTBA:.50,ATZ:.35,RMZ:.33,ZSM:.40};
+
+  const add=(type,name,lo_ft,up_ft,coords)=>{
+    const T=TYPES[type]||TYPES.R;
+    const lo_m=lo_ft*.3048,up_m=Math.max(Math.min(up_ft,400)*.3048,5);
+    features.push({type:'Feature',geometry:{type:'Polygon',coordinates:[coords]},
+      properties:{name,type,class:'',lower_ft:lo_ft,upper_ft:up_ft,
+        lower_m:Math.round(lo_m*10)/10,upper_m:Math.round(up_m*10)/10,height_m:Math.round((up_m-lo_m)*10)/10,
+        lower_str:lo_ft===0?'SFC':`${lo_ft} ft`,upper_str:up_ft>=9999?'UNLIM':`${up_ft} ft`,
+        color:T.color,opacity:opMap[type]||.4}});
+  };
+
+  [['Toulouse Blagnac LFBO',1.364,43.629,.28],['Bordeaux Mérignac LFBD',-.716,44.829,.25],
+   ['Pau-Pyrénées LFBP',-.419,43.380,.18],['Biarritz LFBZ',-1.523,43.468,.17],
+   ['Montpellier LFMT',3.963,43.576,.20],['Perpignan LFMP',2.871,42.740,.17],
+   ['La Rochelle LFBH',-1.196,46.179,.16],['Agen LFBA',.591,44.175,.15],
+   ['Tarbes LFBT',-.006,43.179,.15],['Nîmes LFTW',4.416,43.757,.16],
+   ['Limoges LFBL',1.179,45.863,.16],['Poitiers LFBI',.307,46.588,.14],
+  ].forEach(([n,lo,la,r])=>{
+    add('TMA',`TMA ${n}`,1000,9500,circ(lo,la,r*2.8));
+    add('CTR',`CTR ${n}`,0,2500,circ(lo,la,r));
+    add('ATZ',`ATZ ${n}`,0,1000,circ(lo,la,r*.55));
+  });
+  [['R','LF-R 47A Cazaux',-1.15,44.53,.40,0,2000],['R','LF-R 47B Cazaux Est',-1.05,44.40,.28,0,4000],
+   ['D','LF-D 30 Landes',-1.40,44.10,.58,0,5000],['D','LF-D 31 Biscarrosse',-1.25,44.35,.32,0,3000],
+   ['D','LF-D 56 Pyrénées',1.20,42.85,.46,0,4500],['R','LF-R 228 Captieux',-.27,44.29,.42,0,6000],
+   ['R','LF-R 113 Tarbes',.01,43.18,.25,0,3000],['R','LF-R 107 Caylus',1.90,44.20,.32,0,4000],
+   ['P','LF-P 10 Nucléaire',.68,45.13,.07,0,9999],['P','LF-P 44 Site protégé',2.32,44.87,.06,0,9999],
+   ['RTBA','RTBA Landes',-1.00,44.20,.92,0,6000],['RTBA','RTBA Pyrénées',1.10,43.05,.72,0,8000],
+   ['ZSM','ZSM Marais Poitevin',-.70,46.40,.36,0,500],['RMZ','RMZ Cahors',1.479,44.448,.16,0,1500],
+  ].forEach(([t,n,lo,la,r,lf,uf])=>add(t,n,lf,uf,circ(lo,la,r)));
+  [['SIV Bordeaux',rect(-1.8,44.2,.5,45.5)],['SIV Toulouse',rect(.5,43.3,2.8,44.5)],
+   ['SIV Montpellier',rect(3.0,43.2,4.8,44.2)],['SIV La Rochelle',rect(-2.0,45.8,-.2,46.8)],
+  ].forEach(([n,c])=>add('SIV',n,1000,9500,c));
+
+  ingestFeatures(features);
+  loadDemoNotams();
+  setProgress(100,'Données démo chargées');
+  toast('Données démo chargées (remplacer par SIA AIXM)', 'info');
+}
+
+// ══════════════════════════════════════════════════════
+// CONTRÔLES AFFICHAGE
+// ══════════════════════════════════════════════════════
+function toggle3D() {
+  S.show3D = !S.show3D;
+  document.getElementById('btn-3d').classList.toggle('on', S.show3D);
+  map.setLayoutProperty('airspaces-3d',   'visibility', S.show3D ? 'visible' : 'none');
+  map.setLayoutProperty('airspaces-fill', 'visibility', S.show3D ? 'none' : 'visible');
+  if (S.show3D) {
+    map.easeTo({pitch:45, duration:600});
+  } else {
+    map.easeTo({pitch:0, bearing:0, duration:600});
+  }
+}
+
+function toggleLabels() {
+  S.showLabels = !S.showLabels;
+  document.getElementById('btn-lbl').classList.toggle('on', S.showLabels);
+  map.setLayoutProperty('airspaces-labels', 'visibility', S.showLabels ? 'visible' : 'none');
+}
+
+function flyHome() {
+  map.flyTo({center:[0.5,44.1], zoom:7, pitch:0, bearing:0, duration:1500});
+}
+
+function setBasemap(name) {
+  ['osm','sat','dark'].forEach(k => document.getElementById('btn-'+k)?.classList.remove('on'));
+  document.getElementById('btn-'+name)?.classList.add('on');
+  S.basemap = name;
+
+  // Sauvegarder les données
+  const airspacesData = map.getSource('airspaces')._data;
+  const notamsData    = map.getSource('notams')._data;
+
+  map.setStyle(BASEMAPS[name]);
+
+  // Réinjecter les données après changement de style
+  map.once('styledata', () => {
+    setTimeout(() => {
+      if (map.getSource('airspaces')) {
+        map.getSource('airspaces').setData(airspacesData);
+        map.getSource('notams').setData(notamsData);
+      } else {
+        // Recréer les sources/layers
+        map.on('load', () => {
+          // Note: dans un vrai projet, factoriser initLayers() en fonction séparée
+        });
+      }
+    }, 100);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// UTILITAIRES
+// ══════════════════════════════════════════════════════
+function setProgress(pct, msg) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-msg').textContent = msg;
+}
+
+function toast(msg, type='ok', dur=3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.className = 't-'+type; el.style.display = 'block';
+  clearTimeout(el._t); el._t = setTimeout(()=>el.style.display='none', dur);
+}
+</script>
+</body>
+</html>
