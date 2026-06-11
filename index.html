@@ -238,7 +238,7 @@ function initLayers(){
 
   map.addLayer({id:"asp-3d",type:"fill-extrusion",source:"asp",paint:{
     "fill-extrusion-color":["get","color"],
-    "fill-extrusion-opacity":["get","opacity"],
+    "fill-extrusion-opacity":0.55,
     "fill-extrusion-height":["get","render_top"],
     "fill-extrusion-base":["get","render_base"],
     "fill-extrusion-vertical-gradient":true,
@@ -290,8 +290,8 @@ function ingest(gj){
       upper_m:Math.max(Math.min((p.upper_ft||400)*.3048,120),5),
       lower_m:(p.lower_ft||0)*.3048,
       height_m:Math.max(Math.min((p.upper_ft||400)*.3048,120)-(p.lower_ft||0)*.3048,5),
-      render_base:p.render_base!==undefined?p.render_base:rh.base,
-      render_top:p.render_top!==undefined?p.render_top:rh.top}};
+      render_base:+(p.render_base)||rh.base,
+      render_top:+(p.render_top)||rh.top}};
   });
   S.zones=features.map(f=>f.properties);
   map.getSource("asp").setData({type:"FeatureCollection",features});
@@ -388,11 +388,11 @@ function loadNotams(){
   const cir=(cx,cy,r,n=32)=>{const p=[];for(let i=0;i<=n;i++){const a=i/n*Math.PI*2,rd=(r/60)/Math.cos(cy*Math.PI/180);p.push([cx+rd*Math.sin(a),cy+(r/60)*Math.cos(a)]);}return p;};
   const ng=[
     {type:"Feature",geometry:{type:"Polygon",coordinates:[cir(-1.2,44.8,10)]},
-     properties:{notam_id:"A1234/26",fir:"LFBB",lower_m:0,upper_m:120,lower_str:"SFC",upper_str:"FL050",text:"LF-R 47A CAZAUX ACTIVE"}},
+     properties:{notam_id:"A1234/26",fir:"LFBB",lower_m:0,upper_m:120,lower_str:"SFC",upper_str:"FL050",text:"LF-R 47A CAZAUX ACTIVE",render_base:0,render_top:200}},
     {type:"Feature",geometry:{type:"Polygon",coordinates:[cir(1.364,43.629,14)]},
-     properties:{notam_id:"A1235/26",fir:"LFBO",lower_m:0,upper_m:100,lower_str:"SFC",upper_str:"1000FT",text:"CTR TOULOUSE RWY FERMÉE"}},
+     properties:{notam_id:"A1235/26",fir:"LFBO",lower_m:0,upper_m:100,lower_str:"SFC",upper_str:"1000FT",text:"CTR TOULOUSE RWY FERMÉE",render_base:0,render_top:100}},
     {type:"Feature",geometry:{type:"Polygon",coordinates:[cir(-1.40,44.24,22)]},
-     properties:{notam_id:"A1240/26",fir:"LFBB",lower_m:0,upper_m:120,lower_str:"SFC",upper_str:"FL060",text:"LF-D 30 LANDES ACTIVE"}},
+     properties:{notam_id:"A1240/26",fir:"LFBB",lower_m:0,upper_m:120,lower_str:"SFC",upper_str:"FL060",text:"LF-D 30 LANDES ACTIVE",render_base:0,render_top:120}},
   ];
   S.notamGeo=ng;
   map.getSource("notams").setData({type:"FeatureCollection",features:ng});
