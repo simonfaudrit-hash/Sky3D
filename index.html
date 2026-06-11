@@ -225,8 +225,8 @@ function initLayers(){
   map.addLayer({id:"asp-3d",type:"fill-extrusion",source:"asp",paint:{
     "fill-extrusion-color":["get","color"],
     "fill-extrusion-opacity":["get","opacity"],
-    "fill-extrusion-height":["get","upper_m"],
-    "fill-extrusion-base":["get","lower_m"],
+    "fill-extrusion-height":["get","render_top"],
+    "fill-extrusion-base":["get","render_base"],
     "fill-extrusion-vertical-gradient":true,
   }});
   map.addLayer({id:"asp-fill",type:"fill",source:"asp",layout:{visibility:"none"},paint:{
@@ -239,7 +239,7 @@ function initLayers(){
   }});
   map.addLayer({id:"notam-3d",type:"fill-extrusion",source:"notams",paint:{
     "fill-extrusion-color":"#FFE44D","fill-extrusion-opacity":0.55,
-    "fill-extrusion-height":["get","upper_m"],"fill-extrusion-base":["get","lower_m"],
+    "fill-extrusion-height":["get","render_top"],"fill-extrusion-base":["get","render_base"],
   }});
   map.addLayer({id:"notam-line",type:"line",source:"notams",paint:{
     "line-color":"#FFE44D","line-width":2,"line-dasharray":[4,3],"line-opacity":.9
@@ -262,13 +262,22 @@ function initLayers(){
 }
 
 // ── Ingestion ────────────────────────────────────────────────────
+const RH={
+  P:{base:0,top:400},R:{base:0,top:350},D:{base:0,top:300},
+  CTR:{base:0,top:250},TMA:{base:150,top:500},SIV:{base:200,top:600},
+  RTBA:{base:0,top:450},ATZ:{base:0,top:150},RMZ:{base:0,top:200},
+  ZSM:{base:0,top:100},VOLTAC:{base:0,top:152},PJE:{base:0,top:200},PRN:{base:0,top:80}
+};
 function ingest(gj){
   const features=gj.features.map(f=>{
     const p=f.properties, ti=T[p.type]||T.R;
-    return{...f,properties:{...p,color:ti.color,opacity:OP[p.type]||.4,
+    const rh=RH[p.type]||{base:0,top:120};
+    return{...f,properties:{...p,color:p.color||ti.color,opacity:p.opacity||OP[p.type]||.4,
       upper_m:Math.max(Math.min((p.upper_ft||400)*.3048,120),5),
       lower_m:(p.lower_ft||0)*.3048,
-      height_m:Math.max(Math.min((p.upper_ft||400)*.3048,120)-(p.lower_ft||0)*.3048,5)}};
+      height_m:Math.max(Math.min((p.upper_ft||400)*.3048,120)-(p.lower_ft||0)*.3048,5),
+      render_base:p.render_base!==undefined?p.render_base:rh.base,
+      render_top:p.render_top!==undefined?p.render_top:rh.top}};
   });
   S.zones=features.map(f=>f.properties);
   map.getSource("asp").setData({type:"FeatureCollection",features});
