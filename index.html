@@ -203,7 +203,7 @@ function style(name){
     glyphs:"https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf"};
 }
 
-const map=new maplibregl.Map({
+const map=window.map=new maplibregl.Map({
   container:"mapgl", style:style("osm"),
   center:[0.5,44.1], zoom:7, pitch:45, bearing:0,
   maxZoom:18, minZoom:4,
@@ -216,6 +216,20 @@ map.on("load",()=>{
   initLayers();
   ingest(AIP);
   loadNotams();
+  setTimeout(()=>{
+    const src=map.getSource("asp");
+    const f=src?src._data.features:[];
+    console.log("[Sky3D] features="+f.length+" pitch="+map.getPitch());
+    if(f.length>0){
+      const p=f[0].properties;
+      console.log("[Sky3D] sample: render_top="+p.render_top+" render_base="+p.render_base+" lower_ft="+p.lower_ft);
+    }
+    // Vérifier que le layer asp-3d existe
+    const lyr=map.getLayer("asp-3d");
+    console.log("[Sky3D] asp-3d layer exists: "+(lyr?lyr.type:"NOT FOUND"));
+    // Forcer pitch 45
+    map.setPitch(45);
+  },1000);
 });
 
 function initLayers(){
