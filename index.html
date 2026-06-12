@@ -324,7 +324,7 @@ function ingest(gj){
     const p=f.properties, ti=T[p.type]||T.R;
     const rh=RH[p.type]||{base:0,top:120};
     return{...f,properties:{...p,color:p.color||ti.color,opacity:p.opacity||OP[p.type]||.4,
-      upper_m:Math.max(Math.min((p.upper_ft||400)*.3048,120),5),
+      upper_m:Math.max((p.upper_ft||400)*.3048,5),
       lower_m:(p.lower_ft||0)*.3048,
       height_m:Math.max(Math.min((p.upper_ft||400)*.3048,120)-(p.lower_ft||0)*.3048,5),
       render_base:+(p.render_base)||rh.base,
@@ -343,9 +343,17 @@ function ingest(gj){
 function applyFilter(){
   const ft=S.altMax>=99999?999999:(S.altMax||120)/0.3048;
   const at=[...S.on].filter(t=>t!=="NOTAM");
-  const f=at.length?["all",["in",["get","type"],["literal",at]],["<=",["get","lower_ft"],ft]]:["==",1,0];
+  const base=at.length?["all",["in",["get","type"],["literal",at]],["<=",["get","lower_ft"],ft]]:["==",1,0];
   const lf=at.length?["in",["get","type"],["literal",at]]:["==",1,0];
-  ["asp-3d","asp-3d-bg","asp-fill","asp-lbl"].forEach(l=>{try{map.setFilter(l,f);}catch(e){}});
+  // asp-3d : zones FG (P,R,D...) avec filtre altitude
+  const fgAt=at.filter(t=>FG_TYPES.includes(t));
+  const fFG=fgAt.length?["all",["in",["get","type"],["literal",fgAt]],["<=",["get","lower_ft"],ft]]:["==",1,0];
+  // asp-3d-bg : zones BG (CTR,TMA...) avec filtre altitude
+  const bgAt=at.filter(t=>BG_TYPES.includes(t));
+  const fBG=bgAt.length?["all",["in",["get","type"],["literal",bgAt]],["<=",["get","lower_ft"],ft]]:["==",1,0];
+  try{map.setFilter("asp-3d",fFG);}catch(e){}
+  try{map.setFilter("asp-3d-bg",fBG);}catch(e){}
+  ["asp-fill","asp-lbl"].forEach(l=>{try{map.setFilter(l,base);}catch(e){}});
   try{map.setFilter("asp-line",lf);}catch(e){}
   const nv=S.on.has("NOTAM");
   ["notam-3d","notam-line"].forEach(l=>map.setLayoutProperty(l,"visibility",nv?"visible":"none"));
