@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# Claude Code (config locale, non nécessaire dans le repo)
+.claude/
+
+# Données sources DGAC — fichiers trop lourds pour GitHub (42 Mo + 26 Mo)
+export_xml_bd_sia_2026-06-11-v01/*.xml
