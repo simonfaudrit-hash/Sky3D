@@ -242,17 +242,36 @@ map.on("load",()=>{
   },1000);
 });
 
+const BG_TYPES=["CTR","TMA","CTA","SIV","RTBA","ATZ","RMZ"];
+const FG_TYPES=["P","R","D","VOLTAC","PJE","ZSM","PRN","TRA"];
+function fgFilter(types){return types.length?["in",["get","type"],["literal",types]]:["==",1,0];}
+
 function initLayers(){
   map.addSource("asp",{type:"geojson",data:{type:"FeatureCollection",features:[]},generateId:true});
   map.addSource("notams",{type:"geojson",data:{type:"FeatureCollection",features:[]},generateId:true});
 
-  map.addLayer({id:"asp-3d",type:"fill-extrusion",source:"asp",paint:{
-    "fill-extrusion-color":["get","color"],
-    "fill-extrusion-opacity":0.55,
-    "fill-extrusion-height":["get","render_top"],
-    "fill-extrusion-base":["get","render_base"],
-    "fill-extrusion-vertical-gradient":true,
-  }});
+  // Layer fond (CTR/TMA) — dessiné en PREMIER → caché derrière les zones FG
+  map.addLayer({id:"asp-3d-bg",type:"fill-extrusion",source:"asp",
+    filter:fgFilter(BG_TYPES),
+    paint:{
+      "fill-extrusion-color":["get","color"],
+      "fill-extrusion-opacity":0.35,
+      "fill-extrusion-height":["get","render_top"],
+      "fill-extrusion-base":["get","render_base"],
+      "fill-extrusion-vertical-gradient":true,
+    }
+  });
+  // Layer avant-plan (P/R/D) — dessiné en DERNIER → visible par-dessus CTR
+  map.addLayer({id:"asp-3d",type:"fill-extrusion",source:"asp",
+    filter:fgFilter(FG_TYPES),
+    paint:{
+      "fill-extrusion-color":["get","color"],
+      "fill-extrusion-opacity":0.70,
+      "fill-extrusion-height":["get","render_top"],
+      "fill-extrusion-base":["get","render_base"],
+      "fill-extrusion-vertical-gradient":true,
+    }
+  });
   map.addLayer({id:"asp-fill",type:"fill",source:"asp",layout:{visibility:"none"},paint:{
     "fill-color":["get","color"],"fill-opacity":["*",["get","opacity"],0.5]
   }});
@@ -273,15 +292,16 @@ function initLayers(){
     "visibility":"none","text-font":["Open Sans Bold","Arial Unicode MS Bold"],
   },paint:{"text-color":["get","color"],"text-halo-color":"rgba(0,0,0,.85)","text-halo-width":1.5}});
 
-  ["asp-3d","asp-fill","notam-3d"].forEach(l=>{
+  ["asp-3d","asp-3d-bg","asp-fill","notam-3d"].forEach(l=>{
     map.on("mouseenter",l,()=>map.getCanvas().style.cursor="pointer");
     map.on("mouseleave",l,()=>map.getCanvas().style.cursor="");
   });
   map.on("click","asp-3d",  e=>e.features.length&&showPopup(e.features[0].properties));
+  map.on("click","asp-3d-bg",e=>e.features.length&&showPopup(e.features[0].properties));
   map.on("click","asp-fill",e=>e.features.length&&showPopup(e.features[0].properties));
   map.on("click","notam-3d",e=>e.features.length&&showNPopup(e.features[0].properties));
   map.on("click",e=>{
-    if(!map.queryRenderedFeatures(e.point,{layers:["asp-3d","asp-fill","notam-3d"]}).length) closePopup();
+    if(!map.queryRenderedFeatures(e.point,{layers:["asp-3d","asp-3d-bg","asp-fill","notam-3d"]}).length) closePopup();
   });
 }
 
@@ -325,7 +345,7 @@ function applyFilter(){
   const at=[...S.on].filter(t=>t!=="NOTAM");
   const f=at.length?["all",["in",["get","type"],["literal",at]],["<=",["get","lower_ft"],ft]]:["==",1,0];
   const lf=at.length?["in",["get","type"],["literal",at]]:["==",1,0];
-  ["asp-3d","asp-fill","asp-lbl"].forEach(l=>{try{map.setFilter(l,f);}catch(e){}});
+  ["asp-3d","asp-3d-bg","asp-fill","asp-lbl"].forEach(l=>{try{map.setFilter(l,f);}catch(e){}});
   try{map.setFilter("asp-line",lf);}catch(e){}
   const nv=S.on.has("NOTAM");
   ["notam-3d","notam-line"].forEach(l=>map.setLayoutProperty(l,"visibility",nv?"visible":"none"));
@@ -444,6 +464,7 @@ function toggle3D(){
   document.getElementById("btn-3d").classList.toggle("on",S.show3D);
   document.getElementById("btn-3d").innerHTML=`<span class="bi">🏔</span>${S.show3D?"Volumes 3D":"Vue 2D"}`;
   map.setLayoutProperty("asp-3d","visibility",S.show3D?"visible":"none");
+  map.setLayoutProperty("asp-3d-bg","visibility",S.show3D?"visible":"none");
   map.setLayoutProperty("asp-fill","visibility",S.show3D?"none":"visible");
   map.easeTo({pitch:S.show3D?45:0,bearing:0,duration:600});
 }
@@ -476,9 +497,11 @@ function setBasemap(n){
     map.setPitch(60);
     if(!S.show3D){
       map.setLayoutProperty("asp-3d","visibility","none");
+      map.setLayoutProperty("asp-3d-bg","visibility","none");
       map.setLayoutProperty("asp-fill","visibility","visible");
     } else {
       map.setLayoutProperty("asp-3d","visibility","visible");
+      map.setLayoutProperty("asp-3d-bg","visibility","visible");
       map.setLayoutProperty("asp-fill","visibility","none");
     }
   });
