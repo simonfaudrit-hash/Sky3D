@@ -179,9 +179,8 @@ const mlMap = new maplibregl.Map({
 });
 
 // ── Deck.gl ───────────────────────────────────────────────────────
-const deckgl = new deck.DeckGL({
-  container: 'map',
-  mapStyle: null,
+const deckgl = new deck.Deck({
+  parent: document.getElementById('map'),
   initialViewState: {
     longitude: 0.5,
     latitude: 44.1,
@@ -258,8 +257,6 @@ function render() {
         getFilterValue: f => (f.properties.lower_ft || 0) * 0.3048,
         material: {ambient:0.5, diffuse:0.6, shininess:32, specularColor:[30,30,30]},
         pickable: true,
-        // Ne pas écrire dans le depth buffer : les CTR/TMA ne masquent pas les zones P/R/D imbriquées
-        parameters: { depthMask: false, depthWriteEnabled: false },
       }));
     }
 
@@ -281,6 +278,8 @@ function render() {
         elevationScale: 1,
         material: {ambient:0.6, diffuse:0.7, shininess:32, specularColor:[30,30,30]},
         pickable: true,
+        // Désactiver le depth test : P/R/D toujours visibles même imbriqués dans un CTR
+        parameters: { depthTest: false },
       }));
     }
   } else {
