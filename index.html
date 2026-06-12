@@ -258,6 +258,8 @@ function render() {
         getFilterValue: f => (f.properties.lower_ft || 0) * 0.3048,
         material: {ambient:0.5, diffuse:0.6, shininess:32, specularColor:[30,30,30]},
         pickable: true,
+        // Ne pas écrire dans le depth buffer : les CTR/TMA ne masquent pas les zones P/R/D imbriquées
+        parameters: { depthMask: false, depthWriteEnabled: false },
       }));
     }
 
@@ -282,10 +284,15 @@ function render() {
       }));
     }
   } else {
-    // Vue 2D
+    // Vue 2D — fgTypes dessinés en dernier pour passer au-dessus des CTR/TMA
+    const fgTypes2D = new Set(['P','R','D','VOLTAC','PJE','ZSM','TRA','PRN']);
+    const sorted2D = [
+      ...features.filter(f => !fgTypes2D.has(f.properties.type)),
+      ...features.filter(f => fgTypes2D.has(f.properties.type)),
+    ];
     layers.push(new deck.GeoJsonLayer({
       id: 'asp-2d',
-      data: {type:'FeatureCollection',features},
+      data: {type:'FeatureCollection', features: sorted2D},
       filled: true,
       stroked: true,
       getFillColor: f => getColor(f.properties, 80),
