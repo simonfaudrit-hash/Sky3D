@@ -180,17 +180,22 @@ const AIP = {"type":"FeatureCollection","features":[{"type":"Feature","geometry"
 
 // ── Types ────────────────────────────────────────────────────────
 const T={
-  P:   {label:"Zone Interdite (P)",   color:"#CC0000"},
-  R:   {label:"Zone Réglementée (R)", color:"#DD0000"},
-  D:   {label:"Zone Dangereuse (D)",  color:"#FF9900"},
-  CTR: {label:"CTR",                  color:"#1a6bff"},
-  TMA: {label:"TMA",                  color:"#0090bb"},
-  SIV: {label:"SIV",                  color:"#00aa66"},
-  RTBA:{label:"RTBA",                 color:"#8800cc"},
-  ATZ: {label:"ATZ",                  color:"#3a6090"},
-  RMZ: {label:"RMZ",                  color:"#44aadd"},
-  ZSM: {label:"Zone Sensible",        color:"#ff3399"},
-  NOTAM:{label:"NOTAM actif",         color:"#FFE44D"},
+  P:     {label:"Zone Interdite (P)",    color:"#CC0000"},
+  R:     {label:"Zone Réglementée (R)", color:"#DD0000"},
+  D:     {label:"Zone Dangereuse (D)",  color:"#FF9900"},
+  CTR:   {label:"CTR",                  color:"#1a6bff"},
+  TMA:   {label:"TMA",                  color:"#0090bb"},
+  CTA:   {label:"CTA",                  color:"#0066aa"},
+  SIV:   {label:"SIV",                  color:"#00aa66"},
+  RTBA:  {label:"RTBA",                 color:"#8800cc"},
+  ATZ:   {label:"ATZ",                  color:"#3a6090"},
+  RMZ:   {label:"RMZ",                  color:"#44aadd"},
+  ZSM:   {label:"Zone Sensible",        color:"#ff3399"},
+  VOLTAC:{label:"VOLTAC",               color:"#FF6600"},
+  PJE:   {label:"Zone Para (PJE)",      color:"#cc6600"},
+  PRN:   {label:"Parc/Réserve (PRN)",   color:"#006633"},
+  TRA:   {label:"Zone Transit (TRA)",   color:"#884400"},
+  NOTAM: {label:"NOTAM actif",          color:"#FFE44D"},
 };
 const OP={P:.65,R:.55,D:.48,CTR:.40,TMA:.26,SIV:.20,RTBA:.52,ATZ:.38,RMZ:.36,ZSM:.42,NOTAM:.55};
 
@@ -242,8 +247,8 @@ map.on("load",()=>{
   },1000);
 });
 
-const BG_TYPES=["CTR","TMA","CTA","SIV","RTBA","ATZ","RMZ"];
-const FG_TYPES=["P","R","D","VOLTAC","PJE","ZSM","PRN","TRA"];
+const BG_TYPES=["CTR","TMA","CTA","SIV","RTBA","ATZ","RMZ","PRN"];
+const FG_TYPES=["P","R","D","VOLTAC","PJE","ZSM","TRA"];
 function fgFilter(types){return types.length?["in",["get","type"],["literal",types]]:["==",1,0];}
 
 function initLayers(){
