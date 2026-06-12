@@ -311,7 +311,7 @@ function ingest(gj){
       render_top:+(p.render_top)||rh.top}};
   });
   // Trier par render_top décroissant : zones hautes dessinées en DERNIER = visibles
-  features.sort((a,b)=>(a.properties.render_top||0)-(b.properties.render_top||0));
+  features.sort((a,b)=>(b.properties.render_top||0)-(a.properties.render_top||0));
   S.zones=features.map(f=>f.properties);
   map.getSource("asp").setData({type:"FeatureCollection",features});
   applyFilter(); buildFilters(); updateStats();
