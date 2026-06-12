@@ -247,6 +247,7 @@ map.on("load",()=>{
   },1000);
 });
 
+const RH={P:{base:0,top:5000},R:{base:0,top:4000},D:{base:0,top:3500},CTR:{base:0,top:600},TMA:{base:800,top:3000},CTA:{base:2000,top:6000},SIV:{base:2000,top:5000},RTBA:{base:0,top:4000},ATZ:{base:0,top:600},RMZ:{base:0,top:800},ZSM:{base:0,top:600},VOLTAC:{base:0,top:1500},PJE:{base:0,top:2000},PRN:{base:0,top:400},TRA:{base:0,top:2000}};
 const BG_TYPES=["CTR","TMA","CTA","SIV","RTBA","ATZ","RMZ","PRN"];
 const FG_TYPES=["P","R","D","VOLTAC","PJE","ZSM","TRA"];
 function fgFilter(types){return types.length?["in",["get","type"],["literal",types]]:["==",1,0];}
