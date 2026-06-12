@@ -130,8 +130,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
       <div><span class="av" id="av-m">120</span><span class="au"> m AGL</span></div>
     </div>
     <div style="display:flex;gap:6px;margin-bottom:4px">
-      <button class="btn on" id="btn-lim1" onclick="setAltLimit(120)" style="flex:1;font-size:10px;padding:3px">120m / 400ft</button>
-      <button class="btn"    id="btn-lim2" onclick="setAltLimit(3500)" style="flex:1;font-size:10px;padding:3px">FL115 / 11500ft</button>
+      <button class="btn on" id="btn-lim1" onclick="setAltLimit(120)"   style="flex:1;font-size:10px;padding:3px">120m</button>
+      <button class="btn"    id="btn-lim2" onclick="setAltLimit(3500)"  style="flex:1;font-size:10px;padding:3px">FL115</button>
+      <button class="btn"    id="btn-lim3" onclick="setAltLimit(99999)" style="flex:1;font-size:10px;padding:3px">Tout</button>
     </div>
     <input type="range" id="alt-sl" min="0" max="120" value="120" step="1"/>
     <div class="am"><span class="amk">0 m</span><span id="alt-max-lbl" class="amk w">▲ MAX 120 m / 400 ft</span></div>
@@ -293,9 +294,9 @@ function setAltLimit(maxM){
   sl.value=Math.min(sl.value,maxM);
   S.altM=+sl.value;
   document.getElementById("alt-max-lbl").textContent=
-    maxM===120?"▲ MAX 120 m / 400 ft":"▲ MAX FL115 / 3500 m / 11500 ft";
-  ["btn-lim1","btn-lim2"].forEach(id=>document.getElementById(id)?.classList.remove("on"));
-  document.getElementById(maxM===120?"btn-lim1":"btn-lim2")?.classList.add("on");
+    maxM===120?"▲ MAX 120 m / 400 ft":maxM===3500?"▲ MAX FL115 / 3500 m":"▲ Toutes zones";
+  ["btn-lim1","btn-lim2","btn-lim3"].forEach(id=>document.getElementById(id)?.classList.remove("on"));
+  document.getElementById(maxM===120?"btn-lim1":maxM===3500?"btn-lim2":"btn-lim3")?.classList.add("on");
   applyFilter();
 }
 function ingest(gj){
@@ -309,6 +310,8 @@ function ingest(gj){
       render_base:+(p.render_base)||rh.base,
       render_top:+(p.render_top)||rh.top}};
   });
+  // Trier par render_top décroissant : zones hautes dessinées en DERNIER = visibles
+  features.sort((a,b)=>(a.properties.render_top||0)-(b.properties.render_top||0));
   S.zones=features.map(f=>f.properties);
   map.getSource("asp").setData({type:"FeatureCollection",features});
   applyFilter(); buildFilters(); updateStats();
@@ -318,7 +321,7 @@ function ingest(gj){
 
 // ── Filtre ───────────────────────────────────────────────────────
 function applyFilter(){
-  const ft=(S.altMax||120)/0.3048;
+  const ft=S.altMax>=99999?999999:(S.altMax||120)/0.3048;
   const at=[...S.on].filter(t=>t!=="NOTAM");
   const f=at.length?["all",["in",["get","type"],["literal",at]],["<=",["get","lower_ft"],ft]]:["==",1,0];
   const lf=at.length?["in",["get","type"],["literal",at]]:["==",1,0];
@@ -364,7 +367,7 @@ function showPopup(p){
   document.getElementById("pb").textContent=p.type;
   document.getElementById("pb").style.cssText=`background:rgba(${r},${g},${b},.18);border:1px solid rgba(${r},${g},${b},.45);color:${ti.color}`;
   document.getElementById("pn").textContent=p.name||"?";
-  const ft=(S.altMax||120)/0.3048;
+  const ft=S.altMax>=99999?999999:(S.altMax||120)/0.3048;
   document.getElementById("pr").innerHTML=[
     ["Type",ti.label],["Classe",p.class||"—"],
     ["Plancher",`${p.lower_str||"SFC"} · ${(+(p.lower_m||0)).toFixed(0)} m`],
@@ -455,20 +458,28 @@ let _sd=null;
 function setBasemap(n){
   ["osm","sat","hyb","dark"].forEach(k=>document.getElementById("btn-"+k)?.classList.remove("on"));
   document.getElementById("btn-"+n)?.classList.add("on");
-  try{_sd={a:map.getSource("asp")._data,no:map.getSource("notams")._data};}catch(e){}
+  try{
+    const aspSrc=map.getSource("asp");
+    const notSrc=map.getSource("notams");
+    _sd={a:aspSrc?aspSrc._data:null, no:notSrc?notSrc._data:null};
+  }catch(e){_sd=null;}
   map.setStyle(style(n));
   map.once("style.load",()=>{
     initLayers();
-    if(_sd){
+    if(_sd&&_sd.a){
       map.getSource("asp").setData(_sd.a);
-      map.getSource("notams").setData(_sd.no);
+    } else {
+      ingest(AIP);
     }
+    if(_sd&&_sd.no) map.getSource("notams").setData(_sd.no);
     applyFilter();
-    // Restaurer le pitch et la visibilité 3D
     map.setPitch(60);
     if(!S.show3D){
       map.setLayoutProperty("asp-3d","visibility","none");
       map.setLayoutProperty("asp-fill","visibility","visible");
+    } else {
+      map.setLayoutProperty("asp-3d","visibility","visible");
+      map.setLayoutProperty("asp-fill","visibility","none");
     }
   });
 }
