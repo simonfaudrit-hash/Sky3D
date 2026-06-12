@@ -121,9 +121,9 @@ const AIP = {"type":"FeatureCollection","features":[{"type":"Feature","geometry"
 
 // ── Types et couleurs ─────────────────────────────────────────────
 const T = {
-  P:     {label:"Zone Interdite (P)",    color:[204,0,0],     hex:"#CC0000"},
-  R:     {label:"Zone Réglementée (R)", color:[221,0,0],     hex:"#DD0000"},
-  D:     {label:"Zone Dangereuse (D)",  color:[255,153,0],   hex:"#FF9900"},
+  P:     {label:"Zone Interdite (P)",    color:[210,0,0],     hex:"#D20000"},
+  R:     {label:"Zone Réglementée (R)", color:[210,0,0],     hex:"#D20000"},
+  D:     {label:"Zone Dangereuse (D)",  color:[210,0,0],     hex:"#D20000"},
   CTR:   {label:"CTR",                  color:[26,107,255],  hex:"#1a6bff"},
   TMA:   {label:"TMA",                  color:[0,144,187],   hex:"#0090bb"},
   CTA:   {label:"CTA",                  color:[0,102,170],   hex:"#0066aa"},
@@ -188,7 +188,7 @@ const deckgl = new deck.Deck({
     pitch: 60,
     bearing: 0,
   },
-  controller: true,
+  controller: { dragMode: 'rotate', inertia: 250 },
   onViewStateChange: ({viewState}) => {
     mlMap.jumpTo({
       center: [viewState.longitude, viewState.latitude],
