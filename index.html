@@ -45,6 +45,8 @@ input[type=range]{width:100%;accent-color:#4af;cursor:pointer}
 #popup .pi{color:#567;margin:2px 0}
 #popup .pi span{color:#e0e8ff}
 #alt-bar{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:#0d1220cc;border:1px solid #1e2d4a;border-radius:20px;padding:6px 16px;font-size:11px;color:#4af;pointer-events:none;z-index:50}
+/* Canvas deck.gl (enfant direct de #map) : transparent aux événements souris → MapLibre reçoit pan/rotation */
+#map>canvas{pointer-events:none}
 </style>
 </head>
 <body>
@@ -194,9 +196,6 @@ const deckgl = new deck.Deck({
   },
   controller: false,
 });
-
-// Canvas deck.gl transparent aux événements souris → MapLibre reçoit tous les clics/drags
-deckgl.canvas.style.pointerEvents = 'none';
 
 // Sync deck.gl ← MapLibre à chaque déplacement de la carte
 mlMap.on('move', () => {
