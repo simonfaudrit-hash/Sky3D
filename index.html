@@ -185,10 +185,11 @@ const deckgl = new deck.Deck({
     longitude: 0.5,
     latitude: 44.1,
     zoom: 8,
-    pitch: 60,
+    pitch: 45,
     bearing: 0,
   },
-  controller: { dragMode: 'rotate', inertia: 250 },
+  // Gauche drag = pan | Droit drag = rotation + inclinaison (style Google Earth)
+  controller: { dragMode: 'pan', inertia: 200, scrollZoom: { speed: 0.01, smooth: true } },
   onViewStateChange: ({viewState}) => {
     mlMap.jumpTo({
       center: [viewState.longitude, viewState.latitude],
