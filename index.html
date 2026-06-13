@@ -172,37 +172,46 @@ const mlMap = new maplibregl.Map({
   style: makeStyle('osm'),
   center: [0.5, 44.1],
   zoom: 8,
-  pitch: 0,
+  pitch: 45,
   bearing: 0,
   maxZoom: 16,
+  maxPitch: 80,
   interactive: true,
+  scrollZoom: { around: 'cursor' },
 });
 
 // ── Deck.gl ───────────────────────────────────────────────────────
+// MapLibre gère toute la navigation (pan gauche, rotation droite, zoom molette)
+// deck.gl est passif : rendu 3D uniquement
 const deckgl = new deck.Deck({
   parent: document.getElementById('map'),
-  initialViewState: {
+  viewState: {
     longitude: 0.5,
     latitude: 44.1,
     zoom: 8,
     pitch: 45,
     bearing: 0,
   },
-  // Gauche drag = pan | Droit drag = rotation + inclinaison (style Google Earth)
-  controller: { dragMode: 'pan', inertia: 200, scrollZoom: { speed: 0.01, smooth: true } },
-  onViewStateChange: ({viewState}) => {
-    mlMap.jumpTo({
-      center: [viewState.longitude, viewState.latitude],
-      zoom: viewState.zoom,
-      bearing: viewState.bearing,
-      pitch: viewState.pitch,
-    });
-  },
-  onClick: (info) => {
-    if(info.object) showPopup(info.object.properties, info.x, info.y);
-    else closePopup();
-  },
-  getTooltip: ({object}) => object && object.properties.name,
+  controller: false,
+});
+
+// Canvas deck.gl transparent aux événements souris → MapLibre reçoit tous les clics/drags
+deckgl.canvas.style.pointerEvents = 'none';
+
+// Sync deck.gl ← MapLibre à chaque déplacement de la carte
+mlMap.on('move', () => {
+  const c = mlMap.getCenter();
+  deckgl.setProps({ viewState: {
+    longitude: c.lng, latitude: c.lat,
+    zoom: mlMap.getZoom(), bearing: mlMap.getBearing(), pitch: mlMap.getPitch(),
+  }});
+});
+
+// Clic sur zone : détecter avec deck.gl, afficher popup
+mlMap.on('click', (e) => {
+  const info = deckgl.pickObject({ x: e.point.x, y: e.point.y, radius: 5 });
+  if (info && info.object) showPopup(info.object.properties, e.point.x, e.point.y);
+  else closePopup();
 });
 
 // ── Rendu deck.gl ─────────────────────────────────────────────────
