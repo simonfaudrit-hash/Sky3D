@@ -222,6 +222,20 @@ function getBase(props) {
   return (props.lower_ft || 0) * 0.3048;
 }
 
+// Supprime les points consécutifs quasi-identiques (artefacts d'arc avec sweep~0°)
+function cleanCoords(coords) {
+  if (!coords || coords.length < 3) return coords;
+  const out = [coords[0]];
+  for (let i = 1; i < coords.length - 1; i++) {
+    const prev = out[out.length - 1];
+    const cur  = coords[i];
+    const dx = cur[0] - prev[0], dy = cur[1] - prev[1];
+    if (dx*dx + dy*dy > 1e-8) out.push(cur); // garde si dist > ~0.0001°
+  }
+  out.push(coords[coords.length - 1]); // toujours fermer
+  return out;
+}
+
 function getFilteredFeatures() {
   const ft = S.altMax >= 99999 ? 999999 : S.altMax / 0.3048;
   return AIP.features.filter(f => {
@@ -245,7 +259,7 @@ function render() {
       layers.push(new deck.PolygonLayer({
         id: 'bg-3d',
         data: bgFeatures,
-        getPolygon: f => f.geometry.coordinates[0],
+        getPolygon: f => cleanCoords(f.geometry.coordinates[0]),
         getElevation: f => getElevation(f.properties),
         getFillColor: f => getColor(f.properties, 60),
         getLineColor: f => getColor(f.properties, 200),
@@ -267,7 +281,7 @@ function render() {
       layers.push(new deck.PolygonLayer({
         id: 'fg-3d',
         data: fgFeatures,
-        getPolygon: f => f.geometry.coordinates[0],
+        getPolygon: f => cleanCoords(f.geometry.coordinates[0]),
         getElevation: f => getElevation(f.properties),
         getFillColor: f => getColor(f.properties, 180),
         getLineColor: f => getColor(f.properties, 255),
@@ -289,9 +303,13 @@ function render() {
       ...features.filter(f => !fgTypes2D.has(f.properties.type)),
       ...features.filter(f => fgTypes2D.has(f.properties.type)),
     ];
+    const cleaned2D = sorted2D.map(f => ({
+      ...f,
+      geometry: { ...f.geometry, coordinates: [cleanCoords(f.geometry.coordinates[0])] }
+    }));
     layers.push(new deck.GeoJsonLayer({
       id: 'asp-2d',
-      data: {type:'FeatureCollection', features: sorted2D},
+      data: {type:'FeatureCollection', features: cleaned2D},
       filled: true,
       stroked: true,
       getFillColor: f => getColor(f.properties, 80),
