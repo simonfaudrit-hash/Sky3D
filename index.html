@@ -223,8 +223,7 @@ function getColor(props, alpha) {
 }
 
 function getElevation(props) {
-  // Hauteur visuelle : vraie hauteur réglementaire * facteur
-  const upper_ft = props.upper_ft || 400;
+  const upper_ft = Math.min(props.upper_ft || 400, 19500); // cap FL195 = ~6000m
   const lower_ft = props.lower_ft || 0;
   return Math.max((upper_ft - lower_ft) * 0.3048, 10);
 }
@@ -249,9 +248,13 @@ function cleanCoords(coords) {
 
 function getFilteredFeatures() {
   const ft = S.altMax >= 99999 ? 999999 : S.altMax / 0.3048;
+  // Zones de référence toujours visibles quel que soit le filtre altitude
+  const alwaysShow = new Set(['VOLTAC','PJE','PRN','SUR']);
   return AIP.features.filter(f => {
     const p = f.properties;
-    return S.on.has(p.type) && (p.lower_ft || 0) <= ft;
+    if (!S.on.has(p.type)) return false;
+    if (alwaysShow.has(p.type)) return true;
+    return (p.lower_ft || 0) <= ft;
   });
 }
 
@@ -272,8 +275,8 @@ function render() {
         data: bgFeatures,
         getPolygon: f => cleanCoords(f.geometry.coordinates[0]),
         getElevation: f => getElevation(f.properties),
-        getFillColor: f => getColor(f.properties, 60),
-        getLineColor: f => getColor(f.properties, 200),
+        getFillColor: f => getColor(f.properties, 100),
+        getLineColor: f => getColor(f.properties, 220),
         getLineWidth: 1,
         lineWidthMinPixels: 1,
         extruded: true,
