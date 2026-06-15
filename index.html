@@ -491,8 +491,30 @@ function render() {
       }));
     }
 
-    // Layer P/R/D/VOLTAC/PJE/ZSM : volumes opaques PAR-DESSUS
-    const fgTypes = new Set(['P','R','D','VOLTAC','PJE','ZSM','TRA','PRN','SUR','RTBA']);
+    // Layer VOLTAC/SETBA/SEBAH : zones sol maillées (cellules) pour le drapage terrain.
+    // Matériau PLAT (pas d'éclairage directionnel) + sans contour → surface lisse,
+    // le maillage des cellules ne se voit pas (comme les zones CTR/TMA).
+    const voltacFeatures = flattenFeatures(features.filter(f => f.properties.type === 'VOLTAC'));
+    if(voltacFeatures.length) {
+      layers.push(new deck.PolygonLayer({
+        id: 'voltac-3d',
+        data: voltacFeatures,
+        getPolygon: basePolyCoords,
+        updateTriggers: { getPolygon: [S.terrain, S.heightScale, demVersion] },
+        getElevation: f => getElevation(f.properties),
+        getFillColor: f => getColor(f.properties, 200),
+        stroked: false,
+        extruded: true,
+        wireframe: false,
+        elevationScale: S.heightScale,
+        material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
+        pickable: true,
+        parameters: { depthWriteEnabled: true, depthCompare: 'less-equal' },
+      }));
+    }
+
+    // Layer P/R/D/PJE/ZSM/… : volumes opaques PAR-DESSUS
+    const fgTypes = new Set(['P','R','D','PJE','ZSM','TRA','PRN','SUR','RTBA']);
     const fgFeatures = flattenFeatures(features.filter(f => fgTypes.has(f.properties.type)))
       .sort((a, b) => (a.properties.upper_ft || 0) - (b.properties.upper_ft || 0));
     if(fgFeatures.length) {
@@ -502,7 +524,6 @@ function render() {
         getPolygon: basePolyCoords,
         updateTriggers: { getPolygon: [S.terrain, S.heightScale, demVersion] },
         getElevation: f => getElevation(f.properties),
-        // Quasi-opaque : évite le doublement de transparence sur zones jointives (ex: VOLTAC DAX S / PAU S)
         getFillColor: f => getColor(f.properties, 235),
         getLineColor: f => getColor(f.properties, 255),
         getLineWidth: 2,
