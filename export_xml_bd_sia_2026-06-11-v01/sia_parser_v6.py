@@ -33,7 +33,7 @@ TYPE_MAP = {
     'TrVL':    'TRA',
     'TrPla':   'TRA',
     'TrPVL':   'TRA',
-    'Vol':     'VOLTAC',
+    'Vol':     None,      # vol libre (circuits aérodrome) ≠ zones VOLTAC géographiques
     'Pje':     'PJE',
     'PRN':     'PRN',
     'SUR':     'SUR',    # Zone Sûreté = ZICAD
