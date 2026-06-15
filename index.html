@@ -83,6 +83,15 @@ input[type=range]{width:100%;accent-color:#4af;cursor:pointer}
     <input type="range" id="alt-sl" min="0" max="120" value="120" step="10" oninput="onSlider(this.value)">
   </div>
 
+  <div class="alt-section">
+    <div class="stitle">ÉCHELLE HAUTEUR</div>
+    <div class="limit-btns">
+      <button class="lbtn on" id="hs-1" onclick="setHeightScale(1)">×1</button>
+      <button class="lbtn" id="hs-5" onclick="setHeightScale(5)">×5</button>
+      <button class="lbtn" id="hs-10" onclick="setHeightScale(10)">×10</button>
+    </div>
+  </div>
+
   <div class="btns">
     <button class="btn on" id="btn-3d" onclick="toggle3D()">🏔 3D</button>
     <button class="btn" id="btn-lbl" onclick="toggleLabels()">🏷 Labels</button>
@@ -205,6 +214,7 @@ const S = {
   showLabels: false,
   slice: false,
   terrain: false,   // relief 3D du fond de carte
+  heightScale: 1,   // exagération verticale des zones (×1 / ×5 / ×10)
   zones: [],
   notams: [],
 };
@@ -390,7 +400,9 @@ function basePolyCoords(f) {
   if (S.terrain && isGroundLevel(p)) {
     return c.map(pt => [pt[0], pt[1], sampleElevation(pt[0], pt[1])]);
   }
-  const z = getBase(p);
+  // Plancher mis à l'échelle aussi (×heightScale) : les zones en altitude (TMA/CTA…)
+  // montent proportionnellement, comme leur hauteur → exagération verticale uniforme
+  const z = getBase(p) * S.heightScale;
   return z > 0 ? c.map(pt => [pt[0], pt[1], z]) : c;
 }
 
@@ -466,7 +478,7 @@ function render() {
         getFillColor: f => getColor(f.properties, bgAlpha(f.properties)),
         extruded: true,
         wireframe: false,
-        elevationScale: 1,
+        elevationScale: S.heightScale,
         material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
         pickable: true,
         // bg n'écrit pas la profondeur → fg passe toujours au-dessus (ex: P dans un CTR)
@@ -491,7 +503,7 @@ function render() {
         lineWidthMinPixels: 1,
         extruded: true,
         wireframe: false,
-        elevationScale: 1,
+        elevationScale: S.heightScale,
         material: {ambient:0.6, diffuse:0.6, shininess:32, specularColor:[30,30,30]},
         pickable: true,
         // Depth test/write actifs : les zones jointives s'occultent correctement au lieu de transparaître
@@ -599,6 +611,12 @@ function setLimit(m) {
   sl.max = m >= 99999 ? 9999 : m;
   sl.value = sl.max;
   updateAltDisplay(m);
+  render();
+}
+
+function setHeightScale(s) {
+  S.heightScale = s;
+  [1,5,10].forEach(n=>document.getElementById('hs-'+n).classList.toggle('on', n===s));
   render();
 }
 
