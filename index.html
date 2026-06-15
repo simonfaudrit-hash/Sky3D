@@ -244,6 +244,9 @@ function makeStyle(name) {
 
 // Active/désactive le relief 3D du fond de carte (MapLibre terrain)
 function applyTerrain() {
+  // setTerrain lève une erreur si le style n'est pas chargé (ex. juste après un
+  // changement de fond) → on réessaie quand il l'est, sinon la carte reste noire
+  if (!mlMap.isStyleLoaded()) { mlMap.once('idle', applyTerrain); return; }
   mlMap.setTerrain(S.terrain ? {source:'terrain-dem', exaggeration:1.4} : null);
 }
 
@@ -504,7 +507,10 @@ function render() {
         getElevation: f => getElevation(f.properties),
         getFillColor: f => getColor(f.properties, 200),
         stroked: false,
-        extruded: true,
+        // Non-extrudé : surfaces drapées lisses, zéro maillage. L'extrusion de cellules
+        // séparées fait toujours réapparaître des coutures (parois internes / marches de
+        // terrain), même légères → on y renonce pour ces zones sol (SFC).
+        extruded: false,
         wireframe: false,
         elevationScale: S.heightScale,
         material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
