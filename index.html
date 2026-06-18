@@ -519,17 +519,23 @@ function render() {
 
   const layers = [];
 
-  // ── Restrictions de hauteur aérodromes/ULM (anneaux de paliers) — 2D pour l'instant
+  // ── Restrictions de hauteur aérodromes/ULM (anneaux de paliers, modèle Annexe 4)
+  // 2D : aplats colorés ; 3D : paliers extrudés à leur hauteur max (terrasses).
   if (isTypeVisible('AD_REST')) {
     layers.push(new deck.PolygonLayer({
       id: 'ad-rest',
       data: genAdRestFeatures(),
       getPolygon: d => d.polygon,
-      getFillColor: d => [...d.color, 70],
-      getLineColor: d => [...d.color, 200],
+      getElevation: d => d.height > 0 ? d.height : 50,   // interdit (-1) → volume rouge
+      getFillColor: d => [...d.color, S.show3D ? 170 : 75],
+      getLineColor: d => [...d.color, 220],
       getLineWidth: 1, lineWidthMinPixels: 1,
-      extruded: false,
+      extruded: S.show3D,
+      elevationScale: S.heightScale,
+      material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
+      updateTriggers: { getFillColor: [S.show3D] },
       pickable: true,
+      parameters: { depthWriteEnabled: true, depthCompare: 'less-equal' },
     }));
   }
 
