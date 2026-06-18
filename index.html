@@ -494,10 +494,32 @@ function render() {
       }));
     }
 
-    // Layer P/R/D/VOLTAC/PJE/ZSM/… : volumes opaques PAR-DESSUS
-    // VOLTAC = polygones uniques (contour densifié) → volume qui épouse le terrain
-    // sans maillage, rendu comme les autres zones.
-    const fgTypes = new Set(['P','R','D','VOLTAC','PJE','ZSM','TRA','PRN','SUR','RTBA']);
+    // Layer VOLTAC/SETBA/SEBAH : volumes SFC drapés sur le terrain (polygones uniques
+    // à contour densifié). Matériau PLAT (diffuse:0) → couleur uniforme : pas de facettes
+    // de triangulation visibles sur le cap déformé (l'éclairage directionnel en révélerait).
+    const voltacFeatures = flattenFeatures(features.filter(f => f.properties.type === 'VOLTAC'));
+    if(voltacFeatures.length) {
+      layers.push(new deck.PolygonLayer({
+        id: 'voltac-3d',
+        data: voltacFeatures,
+        getPolygon: basePolyCoords,
+        updateTriggers: { getPolygon: [S.terrain, S.heightScale, demVersion] },
+        getElevation: f => getElevation(f.properties),
+        getFillColor: f => getColor(f.properties, 210),
+        getLineColor: f => getColor(f.properties, 255),
+        getLineWidth: 2,
+        lineWidthMinPixels: 1,
+        extruded: true,
+        wireframe: false,
+        elevationScale: S.heightScale,
+        material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
+        pickable: true,
+        parameters: { depthWriteEnabled: true, depthCompare: 'less-equal' },
+      }));
+    }
+
+    // Layer P/R/D/PJE/ZSM/… : volumes opaques PAR-DESSUS
+    const fgTypes = new Set(['P','R','D','PJE','ZSM','TRA','PRN','SUR','RTBA']);
     const fgFeatures = flattenFeatures(features.filter(f => fgTypes.has(f.properties.type)))
       .sort((a, b) => (a.properties.upper_ft || 0) - (b.properties.upper_ft || 0));
     if(fgFeatures.length) {
