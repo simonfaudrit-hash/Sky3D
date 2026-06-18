@@ -8,27 +8,7 @@ Sortie : voltac_sebah.geojson  (planchers SFC, à injecter dans index.html)
 """
 import re, json, xml.etree.ElementTree as ET
 from pypdf import PdfReader
-from shapely.geometry import Polygon, MultiPolygon, box, mapping
-
-# Subdivision en maille (~3 km) : chaque cellule se drape finement sur le terrain
-# (deck.gl triangule les polygones pleins depuis le contour seul → peu de sommets = drapage grossier)
-GRID_STEP = 0.04  # degrés (~3-4 km) — compromis détail de drapage / taille fichier
-def gridify(geom):
-    minx, miny, maxx, maxy = geom.bounds
-    cells = []
-    x = minx - (minx % GRID_STEP)
-    while x < maxx:
-        y = miny - (miny % GRID_STEP)
-        while y < maxy:
-            inter = box(x, y, x + GRID_STEP, y + GRID_STEP).intersection(geom)
-            if not inter.is_empty:
-                if inter.geom_type == 'Polygon':
-                    cells.append(inter)
-                elif inter.geom_type == 'MultiPolygon':
-                    cells.extend(g for g in inter.geoms if g.geom_type == 'Polygon')
-            y += GRID_STEP
-        x += GRID_STEP
-    return MultiPolygon(cells) if cells else geom
+from shapely.geometry import Polygon, mapping
 
 BASE = '/Users/simonfaudrit/Desktop/Sky3D'
 PDF  = f'{BASE}/FR-ENR-5.3-fr-FR.pdf'
@@ -187,7 +167,9 @@ for name, (els, lo, up, ls, us) in zones.items():
     poly = poly.simplify(0.0008, preserve_topology=True)  # ~75 m, réduit les frontières lourdes
     label = name.split()[0]  # VOLTAC / SETBA / SEBAH
     if label in ('VOLTAC', 'SEBAH'):
-        poly = gridify(poly)   # maille fine → drapage terrain (les SETBA manuels ne sont pas injectés)
+        # Densifie le contour (~1 km) : un seul polygone (pas de maille → pas de
+        # couture interne) dont la base draquée épouse le terrain → volume posé sur le sol
+        poly = poly.segmentize(0.01)
     feats.append({'type': 'Feature', 'geometry': json.loads(json.dumps(mapping(poly))),
         'properties': {'id': 'enr53_' + re.sub(r'\W+', '_', name), 'name': name,
             'type': 'VOLTAC', 'type_label': label, 'class': '',
