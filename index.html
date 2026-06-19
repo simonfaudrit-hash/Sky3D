@@ -253,6 +253,10 @@ function genAdRestFeatures() {
       }
     }
   }
+  // Tri par sévérité décroissante (plus haute hauteur d'abord → plus restrictif
+  // dessiné en DERNIER = au-dessus). Le palier interdit (-1) passe ainsi devant
+  // tout chevauchement (ex. centre rouge 0 m de Bayonne sous la zone de Biarritz).
+  out.sort((a, b) => b.height - a.height);
   AD_REST_FEATURES = out;
   return out;
 }
@@ -532,7 +536,7 @@ function render() {
         return d.polygon.map(ring => ring.map(p => [p[0], p[1], z]));
       },
       getElevation: d => d.height > 0 ? d.height : 0,   // interdit (-1) → plafond 0 m (plat, vol interdit)
-      getFillColor: d => [...d.color, S.show3D ? 170 : 75],
+      getFillColor: d => [...d.color, S.show3D ? 130 : 75],
       getLineColor: d => [...d.color, 220],
       getLineWidth: 1, lineWidthMinPixels: 1,
       extruded: S.show3D,
@@ -540,7 +544,9 @@ function render() {
       material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
       updateTriggers: { getPolygon: [S.terrain], getFillColor: [S.show3D] },
       pickable: true,
-      parameters: { depthWriteEnabled: true, depthCompare: 'less-equal' },
+      // Pas d'écriture de profondeur : ordre de peinture (le plus restrictif, trié en
+      // dernier, passe au-dessus) → les zones se chevauchent sans s'occulter.
+      parameters: { depthWriteEnabled: false, depthCompare: 'less-equal' },
     }));
   }
 
