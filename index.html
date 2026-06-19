@@ -261,6 +261,39 @@ function genAdRestFeatures() {
   return out;
 }
 
+// Volumes 3D drapés (mode Relief) : base posée sur le terrain (échantillonné),
+// plafond plat fixe = altitude axe + hauteur → l'épaisseur = hauteur drone dispo,
+// réduite là où le relief monte. Limité au viewport (perf) ; recalculé au moveend
+// et au chargement de tuiles DEM (demVersion).
+let adRest3DCache = { key: null, data: [] };
+function genAdRest3D() {
+  const b = mlMap.getBounds();
+  const W = b.getWest()-0.05, E = b.getEast()+0.05, So = b.getSouth()-0.05, N = b.getNorth()+0.05;
+  const key = demVersion + '|' + S.heightScale + '|' + [W,So,E,N].map(x=>x.toFixed(2)).join(',');
+  if (adRest3DCache.key === key) return adRest3DCache.data;
+  const out = [];
+  for (const f of genAdRestFeatures()) {
+    const p0 = f.polygon[0][0];
+    if (p0[0] < W || p0[0] > E || p0[1] < So || p0[1] > N) continue;
+    if (f.height <= 0) {   // interdit : tapis rouge drapé à plat sur le terrain
+      out.push({ polygon: f.polygon.map(r => r.map(p => [p[0],p[1],sampleElevation(p[0],p[1])])), color: f.color, a: 150, h: -1 });
+      continue;
+    }
+    const ceil = ((f.ref_elev||0)*0.3048 + f.height*S.heightScale) * DEM_EXAG;
+    const baseRings = f.polygon.map(r => r.map(p => [p[0],p[1],Math.min(sampleElevation(p[0],p[1]), ceil)]));
+    const topRings  = f.polygon.map(r => r.map(p => [p[0],p[1],ceil]));
+    out.push({ polygon: baseRings, color: f.color, a: 55, h: f.height });   // tapis drapé (sol)
+    for (let ri = 0; ri < baseRings.length; ri++) {                          // parois verticales
+      const br = baseRings[ri], tr = topRings[ri];
+      for (let i = 0; i < br.length-1; i++)
+        out.push({ polygon: [[br[i], br[i+1], tr[i+1], tr[i]]], color: f.color, a: 80, h: f.height });
+    }
+  }
+  out.sort((a, b) => b.h - a.h);   // plus restrictif (rouge) dessiné en dernier
+  adRest3DCache = { key, data: out };
+  return out;
+}
+
 // ── État ──────────────────────────────────────────────────────────
 // Types masqués au démarrage (l'utilisateur peut les réactiver)
 // CTA/TMA/ATZ/RMZ/TMZ/TRA réactivées : invisibles à 120m (filtre altitude) donc non polluantes
@@ -528,26 +561,38 @@ function render() {
   // terrain affiché) ; plafond = base + hauteur (plat, ne suit PAS le relief) → là où
   // le terrain dépasse, la hauteur drone réelle est réduite (réf. altitude piste).
   if (isTypeVisible('AD_REST')) {
-    layers.push(new deck.PolygonLayer({
-      id: 'ad-rest',
-      data: genAdRestFeatures(),
-      getPolygon: d => {
-        const z = S.terrain ? (d.ref_elev || 0) * 0.3048 * DEM_EXAG : 0;
-        return d.polygon.map(ring => ring.map(p => [p[0], p[1], z]));
-      },
-      getElevation: d => d.height > 0 ? d.height : 0,   // interdit (-1) → plafond 0 m (plat, vol interdit)
-      getFillColor: d => [...d.color, S.show3D ? 130 : 75],
-      getLineColor: d => [...d.color, 220],
-      getLineWidth: 1, lineWidthMinPixels: 1,
-      extruded: S.show3D,
-      elevationScale: S.heightScale,
-      material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
-      updateTriggers: { getPolygon: [S.terrain], getFillColor: [S.show3D] },
-      pickable: true,
-      // Pas d'écriture de profondeur : ordre de peinture (le plus restrictif, trié en
-      // dernier, passe au-dessus) → les zones se chevauchent sans s'occulter.
-      parameters: { depthWriteEnabled: false, depthCompare: 'less-equal' },
-    }));
+    if (S.terrain && S.show3D) {
+      // Relief 3D : volumes drapés sur le terrain (base = sol, plafond fixe réf. axe)
+      layers.push(new deck.PolygonLayer({
+        id: 'ad-rest',
+        data: genAdRest3D(),
+        getPolygon: d => d.polygon,
+        getFillColor: d => [...d.color, d.a],
+        stroked: false,
+        extruded: false,
+        material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
+        updateTriggers: { getPolygon: [demVersion, S.heightScale], getFillColor: [] },
+        pickable: true,
+        parameters: { depthWriteEnabled: false, depthCompare: 'less-equal' },
+      }));
+    } else {
+      // 2D / hors relief : bandes à plat (ou extrudées à hauteur fixe sans relief)
+      layers.push(new deck.PolygonLayer({
+        id: 'ad-rest',
+        data: genAdRestFeatures(),
+        getPolygon: d => d.polygon.map(ring => ring.map(p => [p[0], p[1], 0])),
+        getElevation: d => d.height > 0 ? d.height : 0,
+        getFillColor: d => [...d.color, S.show3D ? 130 : 75],
+        getLineColor: d => [...d.color, 220],
+        getLineWidth: 1, lineWidthMinPixels: 1,
+        extruded: S.show3D,
+        elevationScale: S.heightScale,
+        material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
+        updateTriggers: { getFillColor: [S.show3D] },
+        pickable: true,
+        parameters: { depthWriteEnabled: false, depthCompare: 'less-equal' },
+      }));
+    }
   }
 
   if(S.show3D) {
