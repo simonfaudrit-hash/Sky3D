@@ -150,6 +150,7 @@ def ci(name):
         if name.lower() in h.lower(): return i
     return -1
 iPos, iOri, iLen, iTopo, iObs = ci('Position'), ci('Orientation premi'), ci('Longueur premi'), ci('Toponyme'), ci('Obsol')
+iAlt = ci('Altitude')
 for r in rows[1:]:
     if len(r) <= max(iPos, iOri, iLen): continue
     if r[iObs].strip(): continue   # ignorer les obsolètes
@@ -175,7 +176,10 @@ for r in rows[1:]:
         seg = LineString([a_, b_])
     else:
         seg = Point(lon, lat)
-    add(r[iTopo].strip() or 'ULM', 'A4.4', seg, lat, lon, 0, 'BaseULM')
+    # altitude de la plateforme (colonne "88 ft" → ft)
+    try: alt = float(re.sub(r'[^0-9.]', '', r[iAlt]) or 0) if iAlt >= 0 and len(r) > iAlt else 0
+    except: alt = 0
+    add(r[iTopo].strip() or 'ULM', 'A4.4', seg, lat, lon, alt, 'BaseULM')
     n_ulm += 1
 
 OUT2 = OUT.replace('.geojson', '_src.json')
