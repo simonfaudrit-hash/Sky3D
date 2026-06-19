@@ -122,37 +122,42 @@ def add(name, cat, geom, lat0, lon0, ref_elev, src):
         g = [[round(geom.x, 5), round(geom.y, 5)]]
     srcs.append({'n': name, 'c': cat, 'e': round(ref_elev), 'g': g})
 
+# Segment de piste depuis centre + orientation (°) + longueur (m)
+def seg_from(lat, lon, brg, ln):
+    fwd, inv = projector(lat, lon)
+    half = ln / 2; th = math.radians(brg)
+    dx, dy = math.sin(th)*half, math.cos(th)*half
+    return LineString([inv(-dx, -dy), inv(dx, dy)])
+def parse_brg(desig):
+    m = re.match(r'(\d{1,2})', desig or '')
+    return int(m.group(1)) * 10 if m else None
+def near(lat, lon, coords, km=1.5):
+    kc = math.cos(math.radians(lat))
+    return any(abs(la-lat) < 0.02 and math.hypot((lo-lon)*kc, la-lat)*111 < km for la, lo in coords)
+
 n_ad = n_heli = n_ulm = 0
+rwy_ad_coords = []   # aérodromes AVEC vraie piste (pour dédup ULM)
+no_rwy_ads = []      # (cid, a) sans piste → décision cercle après lecture ULM
 for cid, a in ahps.items():
-    # pistes de cet aérodrome
     my_rwys = [(d, ln) for (c, d), ln in rwys.items() if c == cid]
     runway_segs = []
     for d, ln in my_rwys:
         ths = rdns.get((cid, d))
-        if ths and len(ths) >= 2:
-            seg = LineString([(ths[0][1], ths[0][0]), (ths[1][1], ths[1][0])])  # lon,lat
-            runway_segs.append((seg, ln))
+        if ths and len(ths) >= 2:                       # seuils Rdn précis
+            seg = LineString([(ths[0][1], ths[0][0]), (ths[1][1], ths[1][0])])
+        else:                                            # repli : ARP + orientation(désig) + longueur
+            brg = parse_brg(d)
+            if brg is None or not ln: continue
+            seg = seg_from(a['lat'], a['lon'], brg, ln)
+        runway_segs.append((seg, ln))
     if runway_segs:
         for seg, ln in runway_segs:
-            cat = 'A4.2' if ln >= 1200 else 'A4.1'
-            add(f"{a['name']} ({cid})", cat, seg, a['lat'], a['lon'], a['elev'], 'AIXM')
-        n_ad += 1
+            add(f"{a['name']} ({cid})", 'A4.2' if ln >= 1200 else 'A4.1', seg, a['lat'], a['lon'], a['elev'], 'AIXM')
+        rwy_ad_coords.append((a['lat'], a['lon'])); n_ad += 1
     else:
-        # pas de piste -> hélistation (cercles A4.3)
-        add(f"{a['name']} ({cid})", 'A4.3', Point(a['lon'], a['lat']), a['lat'], a['lon'], a['elev'], 'AIXM')
-        n_heli += 1
+        no_rwy_ads.append((cid, a))   # piste inconnue dans l'AIXM → voir ULM, sinon cercle
 
 # ─── 2) Plateformes ULM depuis basulm.csv ────────────────────────────────────
-# Beaucoup d'ULM sont enregistrées sur un aérodrome AIXM existant → doublon.
-# On ignore une ULM si elle est à < 1,5 km d'un aérodrome (l'aérodrome prime).
-ad_coords = [(a['lat'], a['lon']) for a in ahps.values()]
-def near_aerodrome(lat, lon, km=1.5):
-    kc = math.cos(math.radians(lat))
-    for (la, lo) in ad_coords:
-        if abs(la-lat) < 0.02 and math.hypot((lo-lon)*kc, la-lat)*111 < km:
-            return True
-    return False
-
 rows = list(csv.reader(open(CSV, encoding='latin-1'), delimiter=';'))
 hdr = rows[0]
 def ci(name):
@@ -161,37 +166,35 @@ def ci(name):
     return -1
 iPos, iOri, iLen, iTopo, iObs = ci('Position'), ci('Orientation premi'), ci('Longueur premi'), ci('Toponyme'), ci('Obsol')
 iAlt = ci('Altitude')
+ulm_list = []   # (lat, lon, seg, alt, name)
 for r in rows[1:]:
     if len(r) <= max(iPos, iOri, iLen): continue
-    if r[iObs].strip(): continue   # ignorer les obsolètes
+    if r[iObs].strip(): continue
     pos = r[iPos].strip()
     if ',' not in pos: continue
     try: lat, lon = [float(x) for x in pos.split(',')]
     except: continue
     if not (-90 <= lat <= 90 and -180 <= lon <= 180): continue
-    if near_aerodrome(lat, lon): continue   # doublon avec un aérodrome AIXM
-    # orientation "13-31" -> QFU 130° ; longueur m
-    ori = re.sub(r"[^0-9-]", '', r[iOri])
+    brg = parse_brg(re.sub(r"[^0-9-]", '', r[iOri]))
     try: ln = float(re.sub(r'[^0-9.]', '', r[iLen]) or 0)
     except: ln = 0
-    brg = None
-    m = re.match(r'(\d{1,2})', ori)
-    if m: brg = int(m.group(1)) * 10
-    # construire le segment de piste (centre + orientation + longueur)
-    if brg is not None and ln > 0:
-        fwd, inv = projector(lat, lon)
-        half = ln / 2
-        th = math.radians(brg)
-        dx, dy = math.sin(th)*half, math.cos(th)*half
-        a_ = inv(-dx, -dy); b_ = inv(dx, dy)
-        seg = LineString([a_, b_])
-    else:
-        seg = Point(lon, lat)
-    # altitude de la plateforme (colonne "88 ft" → ft)
+    seg = seg_from(lat, lon, brg, ln) if (brg is not None and ln > 0) else Point(lon, lat)
     try: alt = float(re.sub(r'[^0-9.]', '', r[iAlt]) or 0) if iAlt >= 0 and len(r) > iAlt else 0
     except: alt = 0
-    add(r[iTopo].strip() or 'ULM', 'A4.4', seg, lat, lon, alt, 'BaseULM')
-    n_ulm += 1
+    ulm_list.append((lat, lon, seg, alt, r[iTopo].strip() or 'ULM'))
+
+# ULM : on ignore celles co-localisées avec un aérodrome ayant une VRAIE piste (doublon)
+for lat, lon, seg, alt, name in ulm_list:
+    if near(lat, lon, rwy_ad_coords): continue
+    add(name, 'A4.4', seg, lat, lon, alt, 'BaseULM'); n_ulm += 1
+
+# Aérodromes sans piste AIXM : cercle (A4.3) seulement si AUCUNE ULM à proximité
+# (sinon la piste ULM couvre déjà le terrain) → vrais héliports/hélistations.
+ulm_coords = [(u[0], u[1]) for u in ulm_list]
+for cid, a in no_rwy_ads:
+    if near(a['lat'], a['lon'], ulm_coords): continue
+    add(f"{a['name']} ({cid})", 'A4.3', Point(a['lon'], a['lat']), a['lat'], a['lon'], a['elev'], 'AIXM')
+    n_heli += 1
 
 OUT2 = OUT.replace('.geojson', '_src.json')
 json.dump(srcs, open(OUT2, 'w'), ensure_ascii=False, separators=(',', ':'))
