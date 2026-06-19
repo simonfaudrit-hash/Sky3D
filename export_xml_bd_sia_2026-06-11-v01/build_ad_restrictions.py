@@ -143,6 +143,16 @@ for cid, a in ahps.items():
         n_heli += 1
 
 # ─── 2) Plateformes ULM depuis basulm.csv ────────────────────────────────────
+# Beaucoup d'ULM sont enregistrées sur un aérodrome AIXM existant → doublon.
+# On ignore une ULM si elle est à < 1,5 km d'un aérodrome (l'aérodrome prime).
+ad_coords = [(a['lat'], a['lon']) for a in ahps.values()]
+def near_aerodrome(lat, lon, km=1.5):
+    kc = math.cos(math.radians(lat))
+    for (la, lo) in ad_coords:
+        if abs(la-lat) < 0.02 and math.hypot((lo-lon)*kc, la-lat)*111 < km:
+            return True
+    return False
+
 rows = list(csv.reader(open(CSV, encoding='latin-1'), delimiter=';'))
 hdr = rows[0]
 def ci(name):
@@ -159,6 +169,7 @@ for r in rows[1:]:
     try: lat, lon = [float(x) for x in pos.split(',')]
     except: continue
     if not (-90 <= lat <= 90 and -180 <= lon <= 180): continue
+    if near_aerodrome(lat, lon): continue   # doublon avec un aérodrome AIXM
     # orientation "13-31" -> QFU 130° ; longueur m
     ori = re.sub(r"[^0-9-]", '', r[iOri])
     try: ln = float(re.sub(r'[^0-9.]', '', r[iLen]) or 0)
