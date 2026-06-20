@@ -93,7 +93,12 @@ for ev, el in ET.iterparse(AIXM, events=('end',)):
         u = el.find('AhpUid'); cid = u.find('codeId').text if u.find('codeId') is not None else None
         la = el.find('geoLat'); lo = el.find('geoLong'); nm = el.find('txtName')
         ev_ = el.find('valElev')
-        if cid and la is not None and lo is not None:
+        ref = el.find('txtDescrRefPt')
+        # Ignorer les « aéroports fictifs » AFS (FIC/ACC/COM/NOF/CROSS/camps) : pas
+        # de piste réelle, tous au même point placeholder (44°59'23"N 008°32'23"W,
+        # en plein Atlantique) → sinon faux axes de piste en mer.
+        fictive = ref is not None and ref.text and 'fictive' in ref.text.lower()
+        if cid and la is not None and lo is not None and not fictive:
             ahps[cid] = {'name': nm.text if nm is not None else cid,
                          'lat': dms(la.text), 'lon': dms(lo.text),
                          'elev': float(ev_.text) if ev_ is not None and ev_.text else 0}
