@@ -117,11 +117,12 @@ input[type=range]{width:100%;accent-color:#4af;cursor:pointer}
   </div>
 </div>
 
-<div id="map"></div>
-<div id="popup">
-  <div class="pt" id="pop-name"></div>
-  <div class="pi">Type : <span id="pop-type"></span></div>
-  <div id="pop-body"></div>
+<div id="map">
+  <div id="popup">
+    <div class="pt" id="pop-name"></div>
+    <div class="pi">Type : <span id="pop-type"></span></div>
+    <div id="pop-body"></div>
+  </div>
 </div>
 <div id="alt-bar">▲ MAX 120 m = 394 ft AGL</div>
 
@@ -366,7 +367,7 @@ mlMap.on('click', (e) => {
     const props = (info.layer && info.layer.id === 'ad-rest')
       ? adRestProps(info.object)
       : (info.object.properties ? zoneProps(info.object.properties) : null);
-    if (props) showPopup(props, e.point.x, e.point.y);
+    if (props) showPopup(props, e.lngLat);
     else closePopup();
   } else closePopup();
 });
@@ -860,21 +861,36 @@ function zoneProps(p) {
   return { name: p.name || p.id, type_label: p.type_label || (T[p.type]||{label:p.type}).label, rows };
 }
 
-function showPopup(props, x, y) {
+let popupLngLat = null;   // ancrage géographique du popup (suit la carte)
+
+function showPopup(props, lngLat) {
   const p = document.getElementById('popup');
   const esc = s => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
   document.getElementById('pop-name').textContent = props.name || '—';
   document.getElementById('pop-type').textContent = props.type_label || '';
   document.getElementById('pop-body').innerHTML = (props.rows || [])
     .map(([l, v]) => `<div class="pi">${esc(l)} : <span>${esc(v)}</span></div>`).join('');
+  popupLngLat = lngLat;
   p.style.display = 'block';
-  p.style.left = (x+10)+'px';
-  p.style.top  = (y+10)+'px';
+  positionPopup();
+}
+
+// Reprojette l'ancre géo → pixels du conteneur carte (popup enfant de #map)
+function positionPopup() {
+  if (!popupLngLat) return;
+  const pt = mlMap.project(popupLngLat);
+  const p = document.getElementById('popup');
+  p.style.left = (pt.x + 10) + 'px';
+  p.style.top  = (pt.y + 10) + 'px';
 }
 
 function closePopup() {
+  popupLngLat = null;
   document.getElementById('popup').style.display = 'none';
 }
+
+// Le popup suit le fond de carte quand on navigue
+mlMap.on('move', positionPopup);
 
 // ── Init ──────────────────────────────────────────────────────────
 mlMap.on('load', () => {
