@@ -65,11 +65,35 @@ def best_match(name):
             best, bf = sc, f
     return (bf, best) if best >= 0.5 else (None, best)
 
+# ── Appariements manuels (cas que l'automatique rate, validés par géolocalisation) ──
+by_id = {f['properties'].get('id_mnhn'): f for f in src}
+MANUAL_GEOM = {                                   # nom AIP → id_mnhn : contour précis + gestionnaire
+    "PRN COTEAUX DE WAVRANS-SUR-L'AA": 'FR3600167',
+    "PRN GROTTE ET PELOUSES D'ACQUIN-WESTBECOURT": 'FR3600167',
+    'PRN ILE DE CAPENSE': 'FR9200001', 'PRN ILE DE GIRAGLIA': 'FR9200001',
+    'PRN ILES DE FINOCCHIAROLA': 'FR9200001',
+    'PRN MANNEVILLES': 'FR3600177', 'PRN MARAIS DE MOEZE': 'FR3600077',
+    'PRN PLATEAU DES BRUZZI-MOINES': 'FR3600147', 'PRN PLATEAU DES LAVEZZI': 'FR3600147',
+    'PRN PY': 'FR3600071', 'PRN ROCHER DE LA JAQUETTE': 'FR3600034',
+}
+MANUAL_INFO = {                                   # nom AIP → (gestionnaire, id_mnhn) : gestionnaire seul (on garde le cercle, sous-zone d'un grand parc)
+    'PRN HAUTE VALLEE DE SAINT PIERRE': ('Parc national des Écrins', 'FR3300005'),
+    'PRN ROCHE GRANDE': ('Parc national du Mercantour', 'FR3300006'),
+    'PRN VERSANT NORD DES PICS DU COMBEYNOT': ('Parc national des Écrins', 'FR3300005'),
+}
+
 geoms, info, miss = {}, {}, []
 for name in prn_names:
-    f, sc = best_match(name)
-    if not f:
-        miss.append(name); continue
+    if name in MANUAL_INFO:                       # gestionnaire seul, pas de remplacement de contour
+        g, idm = MANUAL_INFO[name]
+        info[name] = {'g': g, 'f': f'https://inpn.mnhn.fr/espace/protege/{idm}'}
+        continue
+    if name in MANUAL_GEOM:
+        f = by_id[MANUAL_GEOM[name]]
+    else:
+        f, sc = best_match(name)
+        if not f:
+            miss.append(name); continue
     p = f['properties']
     info[name] = {}
     if p.get('gest_site'): info[name]['g'] = p['gest_site']
