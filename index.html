@@ -221,12 +221,8 @@ let AD_REST_FEATURES = null;
 function genAdRestFeatures() {
   if (AD_REST_FEATURES) return AD_REST_FEATURES;
   const out = [];
-  const push = (s, h, coords) => {
-    const r = coords[0]; let cx=0, cy=0;
-    for (const p of r) { cx += p[0]; cy += p[1]; }
-    out.push({polygon: coords, height: h, cx: cx/r.length, cy: cy/r.length,
-      color: AD_REST_COLOR[String(h)], name: s.n, cat: s.c, ref_elev: s.e});
-  };
+  const push = (s, h, coords) => out.push({polygon: coords, height: h,
+    color: AD_REST_COLOR[String(h)], name: s.n, cat: s.c, ref_elev: s.e});
   for (const s of AD_REST_SRC) {
     const g = s.g;
     const lat0 = g.reduce((a,p)=>a+p[1],0)/g.length, lon0 = g.reduce((a,p)=>a+p[0],0)/g.length;
@@ -532,35 +528,29 @@ function render() {
   // terrain affiché) ; plafond = base + hauteur (plat, ne suit PAS le relief) → là où
   // le terrain dépasse, la hauteur drone réelle est réduite (réf. altitude piste).
   if (isTypeVisible('AD_REST')) {
-    // PolygonLayer extrudé : les parois se dessinent par extrusion (un mur
-    // « polygone vertical » ne se triangule pas → invisible). En mode Relief,
-    // la base est drapée sur le terrain (z par sommet) et l'épaisseur =
-    // plafond(réf. axe) − terrain au centre, donc le volume se réduit avec le
-    // relief. Hors relief : base à plat, épaisseur = hauteur de palier.
-    const relief = S.terrain && S.show3D;
+    // Volumes plats extrudés : base à l'altitude de l'axe de piste (AMSL fixe en
+    // mode relief), plafond = base + hauteur de palier. Pas de drapage sur le
+    // terrain : deck.gl dessine par-dessus le canvas terrain de MapLibre (pas de
+    // partage du depth-buffer) → le relief ne peut pas occulter/intersecter les
+    // volumes, et le drapage déformait les bandes. Volumes nets et lisibles.
     layers.push(new deck.PolygonLayer({
       id: 'ad-rest',
       data: genAdRestFeatures(),
-      getPolygon: d => d.polygon.map(ring => ring.map(p =>
-        [p[0], p[1], relief ? sampleElevation(p[0], p[1]) : 0])),
-      getElevation: d => {
-        if (d.height <= 0) return 0;                      // interdit : plafond 0 m
-        if (!relief) return d.height;                     // hors relief : hauteur fixe
-        const ceilZ = ((d.ref_elev||0)*0.3048 + d.height) * DEM_EXAG;
-        return Math.max(ceilZ - sampleElevation(d.cx, d.cy), 0);
+      getPolygon: d => {
+        const z = S.terrain ? (d.ref_elev || 0) * 0.3048 * DEM_EXAG : 0;
+        return d.polygon.map(ring => ring.map(p => [p[0], p[1], z]));
       },
-      getFillColor: d => [...d.color, S.show3D ? 150 : 80],
+      getElevation: d => d.height > 0 ? d.height : 0,   // interdit (-1) → plafond 0 m (plat, vol interdit)
+      getFillColor: d => [...d.color, S.show3D ? 130 : 75],
       getLineColor: d => [...d.color, 220],
       getLineWidth: 1, lineWidthMinPixels: 1,
       extruded: S.show3D,
       elevationScale: S.heightScale,
       material: {ambient:1.0, diffuse:0.0, shininess:0, specularColor:[0,0,0]},
-      updateTriggers: {
-        getPolygon: [relief, demVersion],
-        getElevation: [relief, S.show3D, S.heightScale, demVersion],
-        getFillColor: [S.show3D],
-      },
+      updateTriggers: { getPolygon: [S.terrain], getFillColor: [S.show3D] },
       pickable: true,
+      // Pas d'écriture de profondeur : ordre de peinture (le plus restrictif, trié en
+      // dernier, passe au-dessus) → les zones se chevauchent sans s'occulter.
       parameters: { depthWriteEnabled: false, depthCompare: 'less-equal' },
     }));
   }
