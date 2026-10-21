@@ -216,6 +216,7 @@ const T = {
   TMZ:   {label:"TMZ",                  color:[51,204,102],  hex:"#33cc66"},
   TRA:   {label:"Zones Transit (TRA)",  color:[136,68,0],    hex:"#884400"},
   SIV:   {label:"SIV",                  color:[0,170,102],   hex:"#00aa66"},
+  UAS:   {label:"Restrictions UAS (DGAC)",color:[0,180,170], hex:"#00b4aa"},
   NOTAM: {label:"NOTAM actif",          color:[255,228,77],  hex:"#FFE44D"},
 };
 
@@ -327,7 +328,7 @@ function genAdRestFeatures() {
 // ── État ──────────────────────────────────────────────────────────
 // Types masqués au démarrage (l'utilisateur peut les réactiver)
 // CTA/TMA/ATZ/RMZ/TMZ/TRA réactivées : invisibles à 120m (filtre altitude) donc non polluantes
-const HIDDEN_DEFAULT = ['SIV'];
+const HIDDEN_DEFAULT = ['SIV', 'UAS'];
 const S = {
   on: new Set(Object.keys(T).filter(t => !HIDDEN_DEFAULT.includes(t))),
   solo: new Set(),   // catégories isolées (style solo de DAW) ; si non vide, prime sur S.on
@@ -355,9 +356,16 @@ function makeStyle(name) {
     dark: {t:["https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png"], a:"© CartoDB"},
   };
   const b = tiles[name] || tiles.osm;
-  const layers = [{id:"base",type:"raster",source:"base"}];
+  // Couche officielle « Restrictions UAS » (DGAC / cartes.gouv.fr, WMTS) — superposée
+  // au fond, activable/désactivable depuis le menu latéral (type UAS).
+  const uasUrl = "https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=TRANSPORTS.DRONES.RESTRICTIONS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png";
+  const layers = [
+    {id:"base",type:"raster",source:"base"},
+    {id:"uas",type:"raster",source:"uas",layout:{visibility: isTypeVisible('UAS') ? 'visible':'none'},paint:{'raster-opacity':0.75}},
+  ];
   const sources = {
     base: {type:"raster",tiles:b.t,tileSize:256,attribution:b.a},
+    uas:  {type:"raster",tiles:[uasUrl],tileSize:256,minzoom:3,maxzoom:15,attribution:"© IGN / DGAC"},
     // Données d'élévation (DEM Terrarium AWS, gratuit, sans clé) pour le terrain 3D
     'terrain-dem': {type:"raster-dem",tiles:["https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png"],encoding:"terrarium",tileSize:256,maxzoom:14},
   };
@@ -603,6 +611,9 @@ function render() {
   const features = getFilteredFeatures();
   S.zones = features.map(f => f.properties);
   updateStats();
+  // Couche officielle Restrictions UAS (MapLibre raster) : visibilité pilotée par le menu
+  if (mlMap.getLayer('uas'))
+    mlMap.setLayoutProperty('uas', 'visibility', isTypeVisible('UAS') ? 'visible' : 'none');
 
   // Zoom d'échantillonnage du terrain adapté à la vue (détail vs nb de tuiles)
   if (S.terrain) demSampleZ = Math.max(8, Math.min(12, Math.round(mlMap.getZoom())));
@@ -782,11 +793,12 @@ function updateStats() {
   Object.entries(T).forEach(([t,info]) => {
     if(t==='NOTAM') return;
     const n = t==='AD_REST' ? AD_REST_SRC.length : S.zones.filter(z=>z.type===t).length;
+    const sub = t==='UAS' ? 'Couche officielle DGAC' : `${n} zone${n>1?'s':''}`;
     const div = document.createElement('div');
     div.className='zf'+(S.on.has(t)?' on':'')+(S.solo.has(t)?' soloed':'');
     div.style.setProperty('--c', info.hex);
     div.innerHTML = `<div class="zdot" style="background:${info.hex}"></div>
-      <div class="zfi"><div class="zfn">${info.label}</div><div class="zfc">${n} zone${n>1?'s':''}</div></div>
+      <div class="zfi"><div class="zfn">${info.label}</div><div class="zfc">${sub}</div></div>
       <div class="solo-btn${S.solo.has(t)?' active':''}" title="Isoler cette catégorie (solo)">S</div>`;
     // Clic sur la ligne : couper / activer (mute)
     div.onclick = () => { S.on.has(t)?S.on.delete(t):S.on.add(t); render(); };
